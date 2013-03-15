@@ -28,14 +28,11 @@ local function dispatch( self, uri, ... )
     local hooks = self.route[uri] and self.route[uri].hooks;
     
     if hooks then
-        local k,v = next( hooks );
-        
-        while k do
+        for i,v in ipairs( hooks ) do
             -- break if return true
             if v.func( ... ) then
                 break;
             end
-            k, v = next( hooks, k );
         end
         return true;
     end
