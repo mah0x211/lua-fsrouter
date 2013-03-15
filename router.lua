@@ -48,7 +48,7 @@ local function compile( route )
     local keys = util.keys( route );
     local rootHooks = route['/'] and route['/'].hooks;
     local newRoot = {};
-    local newHooks, uri, def, idx, pathz, seg, hooks;
+    local newHooks, uri, def, pathz, seg, hooks;
     
     table.sort( keys );
     
@@ -60,11 +60,10 @@ local function compile( route )
         
         -- insert root hooks
         if rootHooks then
-            util.merge( rootHooks, newHooks, 1 );
+            util.merge( rootHooks, newHooks );
         end
         
         if uri ~= '/' and route[uri].hooks then
-            idx = 2;
             hooks = route[uri].hooks;
             pathz = util.split( uri, '/' );
             seg = '/';
@@ -73,11 +72,10 @@ local function compile( route )
             for i = 1, #pathz - 1, 1 do
                 seg = seg .. pathz[i] .. '/';
                 if route[seg] and route[seg].hooks then
-                    util.merge( route[seg].hooks, newHooks, idx );
-                    idx = idx + 1;
+                    util.merge( route[seg].hooks, newHooks );
                 end
             end
-            util.merge( hooks, newHooks, idx );
+            util.merge( hooks, newHooks );
         end
     end
     
