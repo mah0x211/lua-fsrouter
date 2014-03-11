@@ -42,7 +42,7 @@ end
 
 
 local function compile( route )
-    local keys = util.keys( route );
+    local keys = util.table.keys( route );
     local rootHooks = route['/'] and route['/'].hooks;
     local newRoot = {};
     local newHooks, uri, def, pathz, seg, hooks;
@@ -57,22 +57,22 @@ local function compile( route )
         
         -- insert root hooks
         if rootHooks then
-            util.merge( rootHooks, newHooks );
+            util.table.merge( rootHooks, newHooks );
         end
         
         if uri ~= '/' and route[uri].hooks then
             hooks = route[uri].hooks;
-            pathz = util.split( uri, '/' );
+            pathz = util.string.split( uri, '/' );
             seg = '/';
             
             -- check pathz without last-path(=uri)
             for i = 1, #pathz - 1, 1 do
                 seg = seg .. pathz[i] .. '/';
                 if route[seg] and route[seg].hooks then
-                    util.merge( route[seg].hooks, newHooks );
+                    util.table.merge( route[seg].hooks, newHooks );
                 end
             end
-            util.merge( hooks, newHooks );
+            util.table.merge( hooks, newHooks );
         end
     end
     
