@@ -12,11 +12,16 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "util"
+    "halo",
+    "util",
+    "path",
+    "process",
+    "lfs",
 }
 build = {
     type = "builtin",
     modules = {
-        router = "router.lua"
+        router = "router.lua",
+        ["router.mime"] = "libs/mime.lua",
     }
 }

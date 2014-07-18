@@ -21,94 +21,360 @@
   THE SOFTWARE.
 
 --]]
-local util = require('util');
 
-local function dispatch( self, uri, ... )
-    -- get hook table for uri
-    local hooks = self.route[uri] and self.route[uri].hooks;
+local halo = require('halo');
+local strerror = require('process').strerror;
+local path = require('path');
+local url = require('url');
+local lfs = require('lfs');
+local util = require('util');
+local typeof = util.typeof;
+local eval = util.eval;
+local split = util.string.split;
+-- init for libmagic
+local magic;
+do
+    local mgc = require('magic');
+    magic = mgc.open( mgc.MIME_ENCODING, mgc.NO_CHECK_COMPRESS, mgc.SYMLINK );
+    magic:load();
+end
+local MIME_TYPES = require('router.mime');
+local Router = halo.class.Router;
+
+local METHODS = {
+    ['get'] = 'GET',
+    ['post'] = 'POST',
+    ['put'] = 'PUT',
+    ['delete'] = 'DELETE'
+};
+local AUTHNZ = {
+    ['authn'] = 'authn',
+    ['authz'] = 'authz',
+};
+local DEFAULTS = {
+    rootpath = 'public',
+    sandbox = _G,
+    index = 'index.htm'
+};
+
+function Router:init( cfg )
+    local rootpath = rawget( cfg, 'rootpath' );
+    local errno, stat;
+    local k, v, t, arg;
     
-    if hooks then
-        for i,v in ipairs( hooks ) do
-            -- break if return true
-            if v.func( ... ) then
+    -- check config table
+    if not cfg then
+        cfg = {};
+    else
+        assert( 
+            typeof.table( cfg ), 
+            'cfg must be type of table' 
+        );
+    end
+    
+    for k,v in pairs( DEFAULTS ) do
+        arg = rawget( cfg, k );
+        if arg then
+            t = type( v );
+            assert( 
+                t == type( arg ), 
+                ('cfg.%s must be type of %s'):format( k, t ) 
+            );
+            v = arg;
+        end
+        
+        -- check path existence
+        if k == 'rootpath' then
+            arg, errno = path.exists( v );
+            assert( 
+                arg, 
+                ('cfg.%s = %q: %q'):format( k, v, strerror( errno ) ) 
+            );
+            stat = path.stat( rootpath );
+            assert( 
+                path.isDir( stat.mode ), 
+                ('cfg.%s: %q is not directory'):format( k, v ) 
+            );
+            v = arg;
+        end
+        
+        rawset( self, k, v );
+    end
+    
+    rawset( self, 'imp', {
+        ['@hook.lua'] = {
+            symbol = 'Hook',
+            method = METHODS
+        },
+        ['@auth.lua'] = {
+            symbol = 'Auth',
+            method = AUTHNZ
+        }
+    });
+
+    return self;
+end
+
+function Router:getPathStat( pathname, followSymlinks )
+    local fullpath = path.normalize( rawget( self, 'rootpath' ), pathname );
+    local stat, err = path.stat( fullpath, followSymlinks );
+    local info, pathtype;
+    
+    if err then
+        err = strerror(err);
+    else
+        local _, check;
+        
+        for _, check in ipairs({ 
+            'Reg', 'Dir', 'Chr', 'Blk', 'Fifo', 'Lnk', 'Sock' 
+        }) do
+            if path['is' .. check]( stat.mode ) then
+                pathtype = check:lower();
                 break;
             end
         end
-        return true;
-    end
-    
-    return false;
-end
-
-
-local function compile( route )
-    local keys = util.table.keys( route );
-    local rootHooks = route['/'] and route['/'].hooks;
-    local newRoot = {};
-    local newHooks, uri, def, pathz, seg, hooks;
-    
-    table.sort( keys );
-    
-    for i = 1, #keys, 1 do
-        uri = keys[i];
-        def = route[uri];
-        newHooks = {};
-        newRoot[uri] = { hooks = newHooks };
         
-        -- insert root hooks
-        if rootHooks then
-            util.table.merge( rootHooks, newHooks );
-        end
-        
-        if uri ~= '/' and route[uri].hooks then
-            hooks = route[uri].hooks;
-            pathz = util.string.split( uri, '/' );
-            seg = '/';
+        -- regular file
+        if pathtype == 'reg' then
+            local basename = path.basename( fullpath );
+            local ext = path.extname( basename );
+            local charset = magic:file( fullpath );
             
-            -- check pathz without last-path(=uri)
-            for i = 1, #pathz - 1, 1 do
-                seg = seg .. pathz[i] .. '/';
-                if route[seg] and route[seg].hooks then
-                    util.table.merge( route[seg].hooks, newHooks );
-                end
-            end
-            util.table.merge( hooks, newHooks );
+            info = {
+                path = fullpath,
+                basename = basename,
+                ext = ext,
+                mime = MIME_TYPES[ext],
+                charset = charset,
+                ctime = stat.ctime,
+                mtime = stat.mtime,
+                size = stat.size
+            };
+        else
+            info = {
+                path = fullpath,
+                ctime = stat.ctime,
+                mtime = stat.mtime,
+                size = stat.size
+            };
         end
     end
     
-    return newRoot;
+    return info, pathtype, err;
 end
 
-local function define( route, sandbox )
-    local success,fn;
+
+
+function Router:getPathPattern( pathname )
+    local params = {};
+    local idx = 0;
     
-    -- traverse routing definition table
-    for uri, def in pairs( route ) do
-        -- load server hooks
-        for j,hook in ipairs( def.hooks ) do
-            success,fn = pcall( require, hook.name );
-            if success then
-                -- sandboxing
-                if sandbox then
-                    setfenv( fn, sandbox );
+    pathname = path.normalize( pathname );
+    -- convert to pattern string
+    pathname = pathname:gsub( '[/]%$([^/]+)', function( param )
+        idx = idx + 1;
+        rawset( params, idx, param );
+        return '/([^/]+)';
+    end);
+    
+    return pathname, idx > 0 and params or nil;
+end
+
+
+
+local function compile( fullpath, env )
+    local fh, err = io.open( fullpath );
+    local src, fn, co, ok;
+    
+    if fh then
+        src, err = fh:read('*a');
+        fh:close();
+        if not err then
+            fn, err = eval( src, env );
+            if not err then
+                co = coroutine.create( fn );
+                ok, err = coroutine.resume( co );
+                if ok and coroutine.status( co ) == 'suspended' then
+                    err = 'do not suspend main function';
                 end
-                -- add function
-                rawset( hook, 'func', fn );
-            else
-                def.hooks[j] = nil;
             end
         end
     end
     
-    return {
-        -- compile
-        route = compile( route ),
-        dispatch = dispatch
+    return err;
+end
+
+
+function Router:readdir()
+    local rootpath = rawget( self, 'rootpath' );
+    local sandbox = rawget( self, 'sandbox' );
+    local dirpath = '/';
+    local route = {}
+    local routes = {
+        [dirpath] = route
+    };
+    local patternIdx = {};
+    local dirs = {};
+    local entry, pathname, info, pathtype, err, tbl, pattern, params, imp;
+    local delegate = setmetatable({},{
+        __newindex = function( _, methodName, fn )
+            local method = rawget( imp.method, methodName );
+            local methods = rawget( info, 'methods' );
+            
+            assert(
+                typeof.string( methodName ), 
+                ('%s method must be type of string'):format( imp.symbol )
+            );
+            assert( 
+                method, 
+                ('Invalid %s method: %q'):format( imp.symbol, methodName ) 
+            );
+            assert( 
+                typeof.Function( fn ), 
+                ('%s.%s must be type of function'):format( imp.symbol, method ) 
+            );
+            
+            if not typeof.table( methods ) then
+                methods = {};
+                rawset( info, 'methods', methods );
+            end
+            
+            rawset( methods, method, fn );
+        end
+    });
+    
+    repeat
+        methods = {};
+        
+        for entry in lfs.dir( path.normalize( rootpath, dirpath ) ) do
+            if entry ~= '@' and not entry:find( '^[.]' ) then
+                pathname = path.normalize( dirpath, '/', entry );
+                info, pathtype, err = self:getPathStat( pathname, false );
+                assert( err == nil, err );
+                
+                -- save directory entry for next traversing
+                if pathtype == 'dir' then
+                    tbl = {};
+                    -- save parameter name if parametric entry
+                    if entry:find('^%$') then
+                        entry = entry:match('[^$]+');
+                        rawset( tbl, '@param', entry );
+                        -- entry renamed to '@'
+                        entry = '@';
+                    end
+                    
+                    -- save child entry to current route table
+                    rawset( route, entry, tbl );
+                    -- add to loop stack
+                    rawset( dirs, #dirs + 1, {
+                        dirpath = pathname,
+                        route = tbl
+                    });
+                -- check regular file
+                elseif pathtype == 'reg' then
+                    imp = rawget( self.imp, entry );
+                    -- method handler entry
+                    if imp then
+                        rawset( sandbox, imp.symbol, delegate );
+                        err = compile( info.path, sandbox );
+                        rawset( sandbox, imp.symbol, nil );
+                        assert( err == nil, err );
+                        rawset( route, info.basename:match('^(@[^.]+)'), info );
+                    -- non @ prefixed files
+                    elseif not entry:find('^@') then
+                        rawset( route, info.basename, info );
+                    end
+                -- invalid file
+                else
+                    print( ('%q is not regular file entry'):format( pathname ) );
+                end
+            end
+        end
+        
+        -- get remaining directory entry
+        entry = table.remove( dirs );
+        if entry then
+            dirpath = entry.dirpath;
+            route = entry.route;
+        end
+    until not entry;
+
+    rawset( self, 'route', routes );
+end
+
+
+local function getHandler( methodName, node, authn, authz )
+    local handler = rawget( node, '@auth' );
+    
+    if handler then
+        authn = rawget( handler.methods, 'authn' ) or authn;
+        authz = rawget( handler.methods, 'authz' ) or authz;
+    end
+    
+    handler = rawget( node, '@hook' );
+    if handler then
+        method = rawget( handler.methods, methodName );
+    end
+    
+    return authn, authz, method;
+end
+
+
+function Router:lookup( methodName, uri )
+    local node = rawget( self.route, '/' );
+    local params = {};
+    local i, seg, authn, authz, method;
+    local attr = rawget( node, '@auth' );
+    
+    -- check authn/authz handler
+    if attr then
+        authn = rawget( attr.methods, 'authn' ) or authn;
+        authz = rawget( attr.methods, 'authz' ) or authz;
+    end
+    
+    uri = split( path.normalize( uri ), '/' );
+    for i = 1, #uri do
+        -- check segment node
+        seg = rawget( uri, i );
+        node = rawget( node, seg ) or rawget( node, '@' );
+        if not node then
+            break;
+        end
+        
+        -- check param
+        attr = rawget( node, '@param' );
+        if attr then
+            rawset( params, attr, seg );
+        end
+        -- check authn/authz handler
+        attr = rawget( node, '@auth' );
+        if attr then
+            authn = rawget( attr.methods, 'authn' ) or authn;
+            authz = rawget( attr.methods, 'authz' ) or authz;
+        end
+    end
+    
+    -- check method handler
+    if node then
+        attr = rawget( node, '@hook' );
+        if attr then
+            method = rawget( attr.methods, methodName );
+        end
+        -- check index
+        if not rawget( node, 'ext' ) then
+            node = rawget( node, rawget( self, 'index' ) );
+        end
+    end
+    
+    return node and {
+        index = node,
+        params = params,
+        authn = authn,
+        authz = authz,
+        method = method
     };
 end
 
 
-return {
-    define = define
-};
+return Router.exports;
 
