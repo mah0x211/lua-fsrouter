@@ -16,7 +16,7 @@ dependencies = {
     "util",
     "path",
     "process",
-    "lfs",
+    "luafilesystem >= 1.6.2",
 }
 build = {
     type = "builtin",
