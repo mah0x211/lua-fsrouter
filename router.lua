@@ -367,7 +367,7 @@ function Router:lookup( methodName, uri )
     end
     
     return node and {
-        index = node,
+        file = node,
         params = params,
         authn = authn,
         authz = authz,
