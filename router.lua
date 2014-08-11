@@ -179,7 +179,7 @@ function Router:set( pathname, ctx )
     basename = path.basename( pathname );
     err = self.route:set( pathname, ctx );
     if err then
-        error( path .. ': ' .. err );
+        error( pathname .. ': ' .. err );
     elseif self.index[basename] then
         err = self.route:set( pathname:sub( 1, #pathname - #basename ), ctx );
         if err then
