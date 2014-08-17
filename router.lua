@@ -65,7 +65,7 @@ function Router:init( cfg )
     };
     
     -- create fs
-    self.fs = FS.new( cfg.docroot, cfg.followSymlinks );
+    self.fs = FS.new( cfg.docroot, cfg.followSymlinks, cfg.ignore );
     -- create make
     self.make = Make.new( self.fs, cfg.sandbox );
     -- create usher
