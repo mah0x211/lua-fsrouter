@@ -80,7 +80,6 @@ function FS:init( docroot, followSymlinks, ignore )
             assert( typeof.string( val ),
                 ('ignore pattern#%d must be type of string'):format( idx )
             );
-            val = val:gsub( '%.', '\\.' );
             table.insert( ignorePtns, #ignorePtns + 1, val );
         end, ignore );
     end
