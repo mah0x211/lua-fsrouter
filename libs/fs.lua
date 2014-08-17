@@ -81,7 +81,7 @@ function FS:init( docroot, followSymlinks, ignore )
                 ('ignore pattern#%d must be type of string'):format( idx )
             );
             val = val:gsub( '%.', '\\.' );
-            table.insert( ignorePatt, #ignorePtns + 1, val );
+            table.insert( ignorePtns, #ignorePtns + 1, val );
         end, ignore );
     end
     ignorePtns = '^(?:' .. table.concat( ignorePtns, '|' ) .. ')$';
