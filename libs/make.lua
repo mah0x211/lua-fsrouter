@@ -20,25 +20,25 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-  lib/make.lua
+  libs/make.lua
   lua-router
   Created by Masatoshi Teruya on 14/08/16.
  
 --]]
-
+-- modules
 local util = require('util');
 local typeof = util.typeof;
 local eval = util.eval;
+local path = require('path');
 -- constants
-local HANDLER_NAME = 'Handle';
--- method names
+local CONSTANTS = require('router.constants');
+local AUTH_FILE = CONSTANTS.AUTH_FILE;
+local HANDLER_NAME = CONSTANTS.HANDLER_NAME;
 local M_AUTH = {
     authn   = 'authn',
     authz   = 'authz',
 };
-local M_AUTH_LIST = table.concat({
-    'authn', 'authz'
-}, ' or ' );
+local M_AUTH_LIST = table.concat( util.table.keys( M_AUTH ), '|' );
 local M_METHOD = {
     head    = 'head',
     options = 'options',
@@ -47,11 +47,21 @@ local M_METHOD = {
     put     = 'put',
     delete  = 'delete'
 };
-local M_METHOD_LIST = table.concat({
-    'head', 'options', 'get', 'post', 'put', 'delete'
-}, ' or ' );
+local M_METHOD_LIST = table.concat( util.table.keys( M_METHOD ), '|' );
+-- hook mechanism
 local REGISTRY = {};
-
+local DELEGATE = setmetatable({},{
+    __newindex = function( _, method, fn )
+        if not REGISTRY.M_TABLE[typeof.string( method ) and method or ''] then
+            error( ('method name must be %s:<%s>'):format( HANDLER_NAME, REGISTRY.M_LIST ), 2 );
+        elseif not typeof.Function( fn ) then
+            error( 'method must be type of function', 2 );
+        elseif REGISTRY.M_INDEX[method] then
+            error( ('method %s already defined'):format( method ), 2 );
+        end
+        REGISTRY.M_INDEX[method] = fn;
+    end
+});
 
 local function setAuthRegistry( index )
     REGISTRY = {
@@ -69,69 +79,28 @@ local function setMethodRegistry( index )
     };
 end
 
-
-local DELEGATE = setmetatable({},{
-    __newindex = function( _, method, fn )
-        if not REGISTRY.M_TABLE[typeof.string( method ) and method or ''] then
-            error( ('method name must be %s'):format( REGISTRY.M_LIST ), 2 );
-        elseif not typeof.Function( fn ) then
-            error( 'method must be type of function', 2 );
-        elseif REGISTRY.M_INDEX[method] then
-            error( ('method %s already defined'):format( method ), 2 );
+local function make( src, env, pathname )
+    local fn, err = eval( src, env, pathname );
+    
+    if not err then
+        local co = coroutine.create( fn );
+        
+        err = select( 2, coroutine.resume( co ) );
+        if not err and coroutine.status( co ) == 'suspended' then
+            err = 'cannot suspend main';
         end
-        REGISTRY.M_INDEX[method] = fn;
-    end
-});
-
-
-local function readFile( pathname )
-    local fh, err = io.open( pathname );
-    local src, fn, co, ok;
-    
-    if err then
-        return nil, err;
     end
     
-    src, err = fh:read('*a');
-    fh:close();
-    if err then
-        return nil, err;
-    end
-    
-    return src;
+    return err;
 end
 
-
-local function make( pathname, env )
-    local src, err = readFile( pathname );
-    local fn, co, ok;
-    
-    if err then
-        return err;
-    end
-    
-    fn, err = eval( src, env, pathname );
-    if err then
-        return err;
-    end
-    
-    co = coroutine.create( fn );
-    ok, err = coroutine.resume( co );
-    if err then
-        return err;
-    elseif coroutine.status( co ) == 'suspended' then
-        return 'cannot suspend Handler';
-    end
-end
-
-
-local function makeHandler( registryFn, pathname, env )
+local function makeHandler( setRegistry, src, env, pathname )
     local handler = {};
     local err;
     
-    registryFn( handler );
+    setRegistry( handler );
     rawset( env, HANDLER_NAME, DELEGATE );
-    err = make( pathname, env );
+    err = make( src, env, pathname );
     rawset( env, HANDLER_NAME, nil );
     
     if err then
@@ -141,19 +110,36 @@ local function makeHandler( registryFn, pathname, env )
     return handler;
 end
 
+-- class
+local halo = require('halo');
+local Make = halo.class.Make;
 
-local function authHandler( pathname, env )
-    return makeHandler( setAuthRegistry, pathname, env );
+function Make:init( fs, sandbox )
+    assert( halo.instanceof( fs, require('router.fs') ),
+        'fs must be instance of router.fs'
+    );
+    self.fs = fs;
+    
+    if sandbox ~= nil then
+        assert( typeof.table( sandbox ), 'sandbox must be type of table' );
+        self.sandbox = sandbox;
+    else
+        self.sandbox = _G;
+    end
+    
+    return self;
 end
 
-
-local function methodHandler( pathname, env )
-    return makeHandler( setMethodRegistry, pathname, env );
+function Make:make( rpath )
+    local src, err = self.fs:read( rpath );
+    
+    if err then
+        return nil, err;
+    elseif path.basename( rpath ) == AUTH_FILE then
+        return makeHandler( setAuthRegistry, src, self.sandbox, rpath );
+    end
+    
+    return makeHandler( setMethodRegistry, src, self.sandbox, rpath );
 end
 
-
-return {
-    authHandler = authHandler,
-    methodHandler = methodHandler
-};
-
+return Make.exports;
