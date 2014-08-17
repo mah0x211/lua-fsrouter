@@ -40,12 +40,12 @@ local M_AUTH = {
 };
 local M_AUTH_LIST = table.concat( util.table.keys( M_AUTH ), '|' );
 local M_METHOD = {
-    head    = 'head',
-    options = 'options',
-    get     = 'get',
-    post    = 'post',
-    put     = 'put',
-    delete  = 'delete'
+    head    = 'HEAD',
+    options = 'OPTIONS',
+    get     = 'GET',
+    post    = 'POST',
+    put     = 'PUT',
+    delete  = 'DELETE'
 };
 local M_METHOD_LIST = table.concat( util.table.keys( M_METHOD ), '|' );
 -- hook mechanism
@@ -59,7 +59,7 @@ local DELEGATE = setmetatable({},{
         elseif REGISTRY.M_INDEX[method] then
             error( ('method %s already defined'):format( method ), 2 );
         end
-        REGISTRY.M_INDEX[method] = fn;
+        REGISTRY.M_INDEX[REGISTRY.M_TABLE[method]] = fn;
     end
 });
 
