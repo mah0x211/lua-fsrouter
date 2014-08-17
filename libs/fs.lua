@@ -37,6 +37,7 @@ local process = require('process');
 local getcwd = process.getcwd;
 local strerror = process.strerror;
 local MIME = require('router.mime'),
+local lrex = require('rex_pcre');
 local MAGIC;
 do
     local mgc = require('magic');
@@ -50,7 +51,8 @@ local halo = require('halo');
 local FS = halo.class.File;
 
 
-function FS:init( docroot, followSymlinks )
+function FS:init( docroot, followSymlinks, ignore )
+    local ignorePtns = util.table.copy( CONSTANTS.IGNORE_PATTERNS );
     local err;
     
     -- change relative-path to absolute-path
@@ -70,6 +72,19 @@ function FS:init( docroot, followSymlinks )
         );
         self.followSymlinks = followSymlinks;
     end
+    
+    if ignore then
+        assert( typeof.table( ignore ), 'ignore must be type of table' );
+        util.table.each( function( val, idx )
+            assert( typeof.string( val ),
+                ('ignore pattern#%d must be type of string'):format( idx )
+            );
+            val = val:gsub( '%.', '\\.' );
+            table.insert( ignorePatt, #ignorePtns + 1, val );
+        end, ignore );
+    end
+    ignorePtns = '^(?:' .. table.concat( ignorePtns, '|' ) .. ')$';
+    self.ignore = lrex.new( ignorePtns, 'i' );
     
     return self;
 end
