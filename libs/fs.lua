@@ -20,13 +20,15 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-  lib/fs.lua
+  libs/fs.lua
   lua-router
   Created by Masatoshi Teruya on 14/08/16.
  
 --]]
 
-local typeof = require('util').typeof;
+-- modules
+local util = require('util');
+local typeof = util.typeof;
 local path = require('path');
 local normalize = path.normalize;
 local exists = path.exists;
@@ -36,8 +38,12 @@ local extname = path.extname;
 local process = require('process');
 local getcwd = process.getcwd;
 local strerror = process.strerror;
-local MIME = require('router.mime'),
 local lrex = require('rex_pcre');
+-- constants
+local CONSTANTS = require('router.constants');
+local LUA_EXT = CONSTANTS.LUA_EXT;
+local AUTH_FILE = CONSTANTS.AUTH_FILE;
+local MIME = require('router.mime');
 local MAGIC;
 do
     local mgc = require('magic');
@@ -46,10 +52,8 @@ do
     MAGIC = mgc.open( mgc.MIME_ENCODING, mgc.NO_CHECK_COMPRESS, mgc.SYMLINK );
     MAGIC:load();
 end
-
-local halo = require('halo');
-local FS = halo.class.File;
-
+-- class
+local FS = require('halo').class.File;
 
 function FS:init( docroot, followSymlinks, ignore )
     local ignorePtns = util.table.copy( CONSTANTS.IGNORE_PATTERNS );
@@ -58,10 +62,7 @@ function FS:init( docroot, followSymlinks, ignore )
     -- change relative-path to absolute-path
     docroot, err = exists( docroot:sub(1,1) == '/' and docroot or
                            normalize( getcwd(), docroot ) );
-    assert(
-        not err,
-        ('docroot %q does not exists'):format( docroot )
-    );
+    assert( not err, ('docroot %q does not exists'):format( docroot ) );
     self.docroot = docroot;
     
     if followSymlinks == nil then
@@ -110,7 +111,52 @@ end
 
 
 function FS:readdir( rpath )
-    return readdir( normalize( self.docroot, rpath ) );
+    local entries, err = readdir( normalize( self.docroot, rpath ) );
+    
+    if not err then
+        local dirs = {};
+        local files = {};
+        local filesLua = {};
+        local entry, info, fileAuth, _;
+        
+        -- list up
+        for _, entry in ipairs( entries ) do
+            -- AUTH_FILE is highest priority file
+            if entry == AUTH_FILE then
+                info, err = self:stat( rpath .. '/' .. entry );
+                if err then
+                    return nil, err;
+                elseif info.type == 'reg' then
+                    fileAuth = info;
+                end
+            -- not ignoring files
+            elseif not self.ignore:match( entry ) then
+                info, err = self:stat( normalize( rpath, entry ) );
+                -- error: stat
+                if err then
+                    return nil, err;
+                elseif info.type == 'dir' then
+                    dirs[entry] = info.rpath;
+                elseif info.type == 'reg' then
+                    if info.ext == LUA_EXT then
+                        -- remove file extension LUA_EXT
+                        filesLua[entry:sub( 1, #entry - #LUA_EXT )] = info;
+                    else
+                        files[entry] = info;
+                    end
+                end
+            end
+        end
+        
+        return {
+            dirs = dirs,
+            files = files,
+            filesLua = filesLua,
+            fileAuth = fileAuth
+        };
+    end
+    
+    return nil, ('failed to readdir %s - %s'):format( rpath, strerror( err ) );
 end
 
 

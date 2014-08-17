@@ -22,280 +22,122 @@
 
 --]]
 
-local halo = require('halo');
-local strerror = require('process').strerror;
+-- modules
 local usher = require('usher');
-local path = require('path');
-local lfs = require('lfs');
 local util = require('util');
 local typeof = util.typeof;
-local eval = util.eval;
--- init for libmagic
-local magic;
-do
-    local mgc = require('magic');
-    magic = mgc.open( mgc.MIME_ENCODING, mgc.NO_CHECK_COMPRESS, mgc.SYMLINK );
-    magic:load();
-end
-local MIME_TYPES = require('router.mime');
-local CONSTANTS = require('router.constants');
-local DEFAULTS = {
-    rootpath = 'public',
-    sandbox = _G,
-    followSymlinks = false,
-    index = 'index.htm'
+local FS = require('router.fs');
+local Make = require('router.make');
+-- constants
+local DEFAULT = {
+    docroot = 'html',
+    followSymlink = false,
+    index = 'index.htm',
+    sandbox = _G
 };
-local Router = halo.class.Router;
+-- class
+local Router = require('halo').class.Router;
+
 
 function Router:init( cfg )
-    local route, err = usher.new('/@/');
-    local errno, stat;
-    local k, v, t, arg;
-    
-    assert( err == nil, err );
-    rawset( self, 'route', route );
-    
-    -- check config table
     if not cfg then
-        cfg = {};
+        cfg = DEFAULT;
     else
         assert( typeof.table( cfg ), 'cfg must be type of table' );
+        -- create index table
+        if cfg.index then
+            assert(
+                typeof.string( cfg.index ),
+                'cfg.index must be type of string'
+            );
+            assert(
+                not cfg.index:find( '/', 1, true ),
+                'cfg.index should not include path-delimiter'
+            );
+        else
+            cfg.index = DEFAULT.index;
+        end
     end
     
-    -- set default values
-    for k,v in pairs( DEFAULTS ) do
-        arg = rawget( cfg, k );
-        if arg then
-            t = type( v );
-            assert( 
-                t == type( arg ), 
-                ('cfg.%s must be type of %s'):format( k, t ) 
-            );
-            v = arg;
-        end
-        
-        -- check path existence
-        if k == 'rootpath' then
-            arg, errno = path.exists( v );
-            assert(
-                arg, 
-                ('cfg.%s = %q: %q'):format( k, v, strerror( errno ) ) 
-            );
-            stat = path.stat( v );
-            assert( 
-                path.isDir( stat.mode ), 
-                ('cfg.%s: %q is not directory'):format( k, v ) 
-            );
-            v = arg;
-        elseif k == 'index' then
-            v = {
-                [v] = true,
-                ['@'..v] = true
-            };
-        end
-        
-        rawset( self, k, v );
-    end
+    self.index = {
+        [cfg.index] = true,
+        ['@'..cfg.index] = true
+    };
+    
+    -- create fs
+    self.fs = FS.new( cfg.docroot, cfg.followSymlinks );
+    -- create make
+    self.make = Make.new( self.fs, cfg.sandbox );
+    -- create usher
+    self.route, err = usher.new('/@/');
+    assert( not err, err );
     
     return self;
 end
 
 
-function Router:getPathStat( pathname )
-    local fullpath = path.normalize( rawget( self, 'rootpath' ), pathname );
-    local stat, err = path.stat( fullpath );
-    local info, pathtype;
-    
-    if err then
-        err = strerror(err);
-    else
-        local _, check;
-        
-        for _, check in ipairs({ 
-            'Reg', 'Dir', 'Chr', 'Blk', 'Fifo', 'Lnk', 'Sock' 
-        }) do
-            if path['is' .. check]( stat.mode ) then
-                pathtype = check:lower();
-                break;
-            end
-        end
-        
-        -- regular file
-        if pathtype == 'reg' then
-            local basename = path.basename( fullpath );
-            local ext = path.extname( basename );
-            local charset = magic:file( fullpath );
-            
-            info = {
-                path = pathname,
-                basename = basename,
-                ext = ext,
-                mime = MIME_TYPES[ext],
-                charset = charset,
-                ctime = stat.ctime,
-                mtime = stat.mtime,
-                size = stat.size
-            };
-        else
-            info = {
-                path = pathname,
-                ctime = stat.ctime,
-                mtime = stat.mtime,
-                size = stat.size
-            };
-        end
-    end
-    
-    return info, pathtype, err;
-end
-
-
-local function checkField( tblName, tbl, fields, asa )
-    local name;
-    
-    for name in pairs( fields ) do
-        assert(
-            tbl[name] == nil or typeof[asa]( tbl[name] ) == true,
-            ('%s.%s must be type of %s'):format( tblName, name, asa:lower() )
-        );
-    end
-end
-
-function Router:set( pathname, ctx )
-    local methods, name, basename, err;
-    
-    -- check type
-    assert( typeof.string( pathname ), 'pathname must be type of string' );
-    assert( typeof.table( ctx ), 'ctx must be type of table' );
-    assert(
-        ctx.methods == nil or typeof.table( ctx.methods ) == true,
-        'ctx.methods must be type of table'
-    );
-    -- check authn/authz field
-    checkField( 'ctx', ctx, CONSTANTS.AUTHNZ, 'Function' );
-    -- check methods table
-    checkField( 'ctx.methods', ctx.methods, CONSTANTS.M_UPPER, 'Function' );
-    
-    basename = path.basename( pathname );
-    err = self.route:set( pathname, ctx );
-    if err then
-        error( pathname .. ': ' .. err );
-    elseif self.index[basename] then
-        err = self.route:set( pathname:sub( 1, #pathname - #basename ), ctx );
-        if err then
-            error( pathname .. ': ' .. err );
-        end
-    end
-end
-
-
-local function compile( fullpath, env )
-    local fh, err = io.open( fullpath );
-    local src, fn, co, ok;
-    
-    if fh then
-        src, err = fh:read('*a');
-        fh:close();
-        if not err then
-            fn, err = eval( src, env );
-            if not err then
-                co = coroutine.create( fn );
-                ok, err = coroutine.resume( co );
-                if ok and coroutine.status( co ) == 'suspended' then
-                    err = 'do not suspend main function';
-                end
-            end
-        end
-    end
-    
-    return err;
-end
-
-
-local function traverse( self, dirpath, authnz, rootpath, followSymlinks )
-    local files = {};
-    local dirs = {};
-    local methods = {};
-    local entry, pathname, info, pathtype, err, imp, symbol;
-    local delegate = setmetatable({},{
-        __newindex = function( _, method, fn )
-            assert(
-                typeof.string( method ),
-                ('%s method must be type of string'):format( symbol )
-            );
-            assert(
-                CONSTANTS.M_LOWER[method] or CONSTANTS.AUTHNZ[method],
-                ('Invalid %s method: %q'):format( symbol, method )
-            );
-            assert(
-                typeof.Function( fn ), 
-                ('%s.%s must be type of function'):format( symbol, method )
-            );
-            if CONSTANTS.M_LOWER[method] then
-                local methodName = CONSTANTS.M_LOWER[method];
-                -- has already
-                assert(
-                    methods[methodName] == nil,
-                    ('%s.%s already defined'):format( symbol, method )
-                );
-                methods[methodName] = fn;
-            else
-                authnz[method] = fn;
-            end
-        end
-    });
-    
-    -- list up
-    for entry in lfs.dir( path.normalize( rootpath, dirpath ) ) do
-        -- ignore dot-files
-        if not entry:find( '^[.]' ) then
-            pathname = path.normalize( dirpath, '/', entry );
-            info, pathtype, err = self:getPathStat( pathname, followSymlinks );
-            assert( err == nil, err );
-            
-            if pathtype == 'dir' then
-                dirs[entry] = info;
-            elseif pathtype == 'reg' then
-                if CONSTANTS.SYMBOL[entry] then
-                    symbol = CONSTANTS.SYMBOL[entry];
-                    imp = info;
-                else
-                    files[entry] = info;
-                end
-            -- invalid file
-            else
-                print( ('%q is not regular file entry'):format( pathname ) );
-            end
-        end
-    end
-    
-    -- check imp
-    if imp then
-        -- method handler entry
-        self.sandbox[symbol] = delegate;
-        err = compile( path.normalize( rootpath, imp.path ), self.sandbox );
-        self.sandbox[symbol] = nil;
-        assert( err == nil, err );
-    end
-    
-    -- check entry
-    for entry, info in pairs( files ) do
-        info.methods = methods;
-        info.authn = authnz.authn;
-        info.authz = authnz.authz;
-        self:set( info.path, info );
-    end
-    
-    -- traverse dir
-    authnz = util.table.copy( authnz );
-    for entry, info in pairs( dirs ) do
-        traverse( self, info.path, authnz, rootpath, followSymlinks );
-    end
-end
-
-
 function Router:readdir()
-    traverse( self, '/', {}, self.rootpath, self.followSymlinks );
+    local authHandler = {};
+    local dirs = {};
+    local dir = '/';
+    local entries, err, handler, filesLua, entry, stat, v, _;
+    
+    while dir do
+        entries, err = self.fs:readdir( dir );
+
+        if err then
+            return err;
+        end
+        -- append dirs
+        for _, v in pairs( entries.dirs ) do
+            table.insert( dirs, v );
+        end
+        
+        -- check AUTH_FILE
+        if entries.fileAuth then
+            handler, err = self.make:make( entries.fileAuth.rpath );
+            if err then
+                return err;
+            end
+            -- merge
+            for k,v in pairs( handler ) do
+                authHandler[k] = v;
+            end
+        end
+
+        -- check entry
+        filesLua = entries.filesLua;
+        for entry, stat in pairs( entries.files ) do
+            -- add auth handler
+            stat.authn = authHandler.authn;
+            stat.authz = authHandler.authz;
+            -- make file handler
+            if filesLua[entry] then
+                handler, err = self.make:make( filesLua[entry].rpath );
+                if err then
+                    return err;
+                end
+                -- add page handler
+                for k,v in pairs( handler ) do
+                    stat[k] = v;
+                end
+            end
+            
+            err = self.route:set( stat.rpath, stat );
+            if err then
+                return ('failed to set route %s: %s'):format( stat.rpath, err );
+            -- add trailing-slash path if entry is index file
+            elseif self.index[entry] then
+                entry = stat.rpath:sub( 1, #stat.rpath - #entry );
+                err = self.route:set( entry, stat );
+                if err then
+                    return ('failed to set index route %s: %s'):format( entry, err );
+                end
+            end
+        end
+        
+        dir = util.table.shift( dirs );
+    end
 end
 
 
@@ -303,6 +145,10 @@ function Router:lookup( uri )
     return self.route:exec( uri );
 end
 
+
+function Router:dump()
+    self.route:dump();
+end
 
 return Router.exports;
 

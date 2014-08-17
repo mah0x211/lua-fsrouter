@@ -22,30 +22,11 @@
 
 --]]
 
-local SYMBOL = {
-    ['$hook.lua'] = 'Hook'
-}
-local AUTHNZ = {
-    ['authn'] = 'authn',
-    ['authz'] = 'authz',
-};
--- method names
-local M_LOWER = {};
-local M_UPPER = {};
--- setup
-do
-    local _, lowercase, uppercase;
-
-    for _, lowercase in ipairs({ 'get', 'post', 'put', 'delete' }) do
-        uppercase = lowercase:upper();
-        M_LOWER[lowercase], M_UPPER[uppercase] = uppercase, lowercase;
-    end
-end
-
 return {
-    SYMBOL  = SYMBOL,
-    AUTHNZ  = AUTHNZ,
-    M_LOWER = M_LOWER,
-    M_UPPER = M_UPPER
+    LUA_EXT         = '.lua',
+    AUTH_FILE       = 'auth.lua',
+    HANDLER_NAME    = 'Handle';
+    -- regular expressions - PCRE
+    IGNORE_PATTERNS = { '[.]+[^.]*' }
 };
 

@@ -16,13 +16,16 @@ dependencies = {
     "path",
     "process",
     "usher",
-    "luafilesystem >= 1.6.2",
+    "magic",
+    "lrexlib-pcre"
 }
 build = {
     type = "builtin",
     modules = {
         router = "router.lua",
         ["router.mime"] = "libs/mime.lua",
-        ["router.constants"] = "libs/constants.lua"
+        ["router.constants"] = "libs/constants.lua",
+        ["router.fs"] = "libs/fs.lua",
+        ["router.make"] = "libs/make.lua"
     }
 }
