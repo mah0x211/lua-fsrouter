@@ -57,13 +57,12 @@ local FS = require('halo').class.File;
 
 function FS:init( docroot, followSymlinks, ignore )
     local ignorePtns = util.table.copy( CONSTANTS.IGNORE_PATTERNS );
-    local err;
-    
     -- change relative-path to absolute-path
-    docroot, err = exists( docroot:sub(1,1) == '/' and docroot or
-                           normalize( getcwd(), docroot ) );
+    local rootpath, err = exists( docroot:sub(1,1) == '/' and docroot or
+                          normalize( getcwd(), docroot ) );
+
     assert( not err, ('docroot %q does not exists'):format( docroot ) );
-    self.docroot = docroot;
+    self.docroot = rootpath;
     
     if followSymlinks == nil then
         self.followSymlinks = false;
