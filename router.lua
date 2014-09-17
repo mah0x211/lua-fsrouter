@@ -59,11 +59,11 @@ function Router:init( cfg )
         end
     end
     
+    -- create index table
     self.index = {
         [cfg.index] = true,
         ['@'..cfg.index] = true
     };
-    
     -- create fs
     self.fs = FS.new( cfg.docroot, cfg.followSymlinks, cfg.ignore );
     -- create make

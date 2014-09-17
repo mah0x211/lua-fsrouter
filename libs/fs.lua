@@ -35,9 +35,7 @@ local exists = path.exists;
 local readdir = path.readdir;
 local stat = path.stat;
 local extname = path.extname;
-local process = require('process');
-local getcwd = process.getcwd;
-local strerror = process.strerror;
+local getcwd = require('process').getcwd;
 local lrex = require('rex_pcre');
 -- constants
 local CONSTANTS = require('router.constants');
@@ -154,7 +152,7 @@ function FS:readdir( rpath )
         };
     end
     
-    return nil, ('failed to readdir %s - %s'):format( rpath, strerror( err ) );
+    return nil, ('failed to readdir %s - %s'):format( rpath, err );
 end
 
 
@@ -163,7 +161,7 @@ function FS:stat( rpath )
     local info, err = stat( pathname, self.followSymlinks, true );
     
     if err then
-        return nil, ('failed to stat: %s - %s'):format( rpath, strerror( err ) );
+        return nil, ('failed to stat: %s - %s'):format( rpath, err );
     -- regular file
     elseif info.type == 'reg' then
         local ext = extname( rpath );
