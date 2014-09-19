@@ -76,68 +76,69 @@ function Router:init( cfg )
 end
 
 
-function Router:readdir()
-    local authHandler = {};
-    local dirs = {};
-    local dir = '/';
-    local entries, err, handler, filesLua, entry, stat, v, _;
-    
-    while dir do
-        entries, err = self.fs:readdir( dir );
+local function parsedir( self, dir, authHandler )
+    local entries, err = self.fs:readdir( dir );
+    local handler, filesLua, entry, stat, k, v, _;
 
+    if err then
+        return err;
+    end
+
+    -- check AUTH_FILE
+    if entries.fileAuth then
+        handler, err = self.make:make( entries.fileAuth.rpath );
         if err then
             return err;
         end
-        -- append dirs
-        for _, v in pairs( entries.dirs ) do
-            table.insert( dirs, v );
+        -- merge
+        for k,v in pairs( handler ) do
+            authHandler[k] = v;
         end
-        
-        -- check AUTH_FILE
-        if entries.fileAuth then
-            handler, err = self.make:make( entries.fileAuth.rpath );
+    end
+
+    -- check entry
+    filesLua = entries.filesLua;
+    for entry, stat in pairs( entries.files ) do
+        -- add auth handler
+        stat.authn = authHandler.authn;
+        stat.authz = authHandler.authz;
+        -- make file handler
+        if filesLua[entry] then
+            handler, err = self.make:make( filesLua[entry].rpath );
             if err then
                 return err;
             end
-            -- merge
+            -- add page handler
             for k,v in pairs( handler ) do
-                authHandler[k] = v;
-            end
-        end
-
-        -- check entry
-        filesLua = entries.filesLua;
-        for entry, stat in pairs( entries.files ) do
-            -- add auth handler
-            stat.authn = authHandler.authn;
-            stat.authz = authHandler.authz;
-            -- make file handler
-            if filesLua[entry] then
-                handler, err = self.make:make( filesLua[entry].rpath );
-                if err then
-                    return err;
-                end
-                -- add page handler
-                for k,v in pairs( handler ) do
-                    stat[k] = v;
-                end
-            end
-            
-            err = self.route:set( stat.rpath, stat );
-            if err then
-                return ('failed to set route %s: %s'):format( stat.rpath, err );
-            -- add trailing-slash path if entry is index file
-            elseif self.index[entry] then
-                entry = stat.rpath:sub( 1, #stat.rpath - #entry );
-                err = self.route:set( entry, stat );
-                if err then
-                    return ('failed to set index route %s: %s'):format( entry, err );
-                end
+                stat[k] = v;
             end
         end
         
-        dir = util.table.shift( dirs );
+        err = self.route:set( stat.rpath, stat );
+        if err then
+            return ('failed to set route %s: %s'):format( stat.rpath, err );
+        -- add trailing-slash path if entry is index file
+        elseif self.index[entry] then
+            entry = stat.rpath:sub( 1, #stat.rpath - #entry );
+            err = self.route:set( entry, stat );
+            if err then
+                return ('failed to set index route %s: %s'):format( entry, err );
+            end
+        end
     end
+
+    -- recursive call
+    for _, v in pairs( entries.dirs ) do
+        err = parsedir( self, v, util.table.copy( authHandler ) );
+        if err then
+            return err;
+        end
+    end
+end
+
+
+function Router:readdir()
+    return parsedir( self, '/', {} );
 end
 
 
