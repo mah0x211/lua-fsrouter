@@ -113,7 +113,7 @@ function FS:readdir( rpath )
         local dirs = {};
         local files = {};
         local filesLua = {};
-        local entry, info, fileAuth, _;
+        local info, fileAuth;
         
         -- list up
         for _, entry in ipairs( entries ) do

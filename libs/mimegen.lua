@@ -28,7 +28,7 @@
 
 local util = require('util');
 local mime = {};
-local line, i, list;
+local list;
 
 for line in io.lines('./mime.types') do
     if not line:find( '^%s*#' ) then

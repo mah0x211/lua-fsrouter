@@ -40,6 +40,8 @@ local Router = require('halo').class.Router;
 
 
 function Router:init( cfg )
+    local err;
+    
     if not cfg then
         cfg = DEFAULT;
     else
@@ -78,7 +80,7 @@ end
 
 local function parsedir( self, dir, authHandler )
     local entries, err = self.fs:readdir( dir );
-    local handler, filesLua, entry, stat, k, v, _;
+    local handler, filesLua;
 
     if err then
         return err;
