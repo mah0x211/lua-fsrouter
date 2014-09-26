@@ -124,6 +124,14 @@ local function makeHandler( setRegistry, src, env, pathname )
     
     if err then
         return nil, err;
+    -- set wildcard handler to all empty method
+    elseif handler['*'] then
+        for _, method in pairs( REGISTRY.M_TABLE ) do
+            if not handler[method] then
+                handler[method] = handler['*'];
+            end
+        end
+        handler['*'] = nil;
     end
     
     return handler;
