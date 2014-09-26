@@ -133,8 +133,6 @@ local function parsedir( self, dir, authHandler, filterHandler )
     for entry, stat in pairs( entries.files ) do
         -- add auth handler
         stat.auth = authHandler;
-        -- add filter handler
-        stat.filter = filterHandler;
         
         -- make basename handler
         basename = entry:match('^[^.]+');
@@ -164,6 +162,23 @@ local function parsedir( self, dir, authHandler, filterHandler )
             elseif handler ~= stat.handler then
                 stat.handler = handler;
             end
+        end
+        
+        -- merge filter handler with file handler
+        if stat.handler then
+            tbl = stat.handler;
+            stat.handler = util.table.clone( filterHandler );
+            for method, fn in pairs( tbl ) do
+                tbl = stat.handler[method];
+                if not tbl then
+                    tbl = { fn };
+                    stat.handler[method] = tbl;
+                else
+                    tbl[#tbl+1] = fn;
+                end
+            end
+        else
+            stat.handler = filterHandler;
         end
         
         err = self.route:set( stat.rpath, stat );
