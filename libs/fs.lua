@@ -40,7 +40,9 @@ local lrex = require('rex_pcre');
 -- constants
 local CONSTANTS = require('router.constants');
 local LUA_EXT = CONSTANTS.LUA_EXT;
-local AUTH_FILE = CONSTANTS.AUTH_FILE;
+local SPECIAL_FILES = {
+    [CONSTANTS.AUTH_FILE] = 'auth'
+};
 local MIME = require('router.mime');
 local MAGIC;
 do
@@ -110,20 +112,26 @@ function FS:readdir( rpath )
     local entries, err = readdir( normalize( self.docroot, rpath ) );
     
     if not err then
-        local dirs = {};
-        local files = {};
-        local filesLua = {};
-        local info, fileAuth;
+        local result = {
+            dirs = {},
+            files = {},
+            scripts = {}
+        };
+        local dirs = result.dirs;
+        local files = result.files;
+        local scripts = result.scripts;
+        local info, field;
         
         -- list up
         for _, entry in ipairs( entries ) do
-            -- AUTH_FILE is highest priority file
-            if entry == AUTH_FILE then
+            field = SPECIAL_FILES[entry];
+            -- AUTH_FILE and FILTER_FILE is highest priority file
+            if field then
                 info, err = self:stat( rpath .. '/' .. entry );
                 if err then
                     return nil, err;
                 elseif info.type == 'reg' then
-                    fileAuth = info;
+                    result[field] = info;
                 end
             -- not ignoring files
             elseif not self.ignore:match( entry ) then
@@ -136,7 +144,7 @@ function FS:readdir( rpath )
                 elseif info.type == 'reg' then
                     if info.ext == LUA_EXT then
                         -- remove file extension LUA_EXT
-                        filesLua[entry:sub( 1, #entry - #LUA_EXT )] = info;
+                        scripts[entry:sub( 1, #entry - #LUA_EXT )] = info;
                     else
                         files[entry] = info;
                     end
@@ -144,12 +152,7 @@ function FS:readdir( rpath )
             end
         end
         
-        return {
-            dirs = dirs,
-            files = files,
-            filesLua = filesLua,
-            fileAuth = fileAuth
-        };
+        return result;
     end
     
     return nil, ('failed to readdir %s - %s'):format( rpath, err );

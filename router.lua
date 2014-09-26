@@ -96,22 +96,22 @@ end
 local function parsedir( self, dir, authHandler )
     local entries, err = self.fs:readdir( dir );
     local basenameHandler = {};
-    local handler, filesLua, basename, tbl;
+    local handler, scripts, basename, tbl;
 
     if err then
         return err;
     end
 
     -- check AUTH_FILE
-    if entries.fileAuth then
-        err = makeHandler( self.make, entries.fileAuth.rpath, authHandler );
+    if entries.auth then
+        err = makeHandler( self.make, entries.auth.rpath, authHandler );
         if err then
             return err;
         end
     end
 
     -- check entry
-    filesLua = entries.filesLua;
+    scripts = entries.scripts;
     for entry, stat in pairs( entries.files ) do
         -- add auth handler
         stat.authn = authHandler.authn;
@@ -119,12 +119,12 @@ local function parsedir( self, dir, authHandler )
         
         -- make basename handler
         basename = entry:match('^[^.]+');
-        if filesLua[basename] then
+        if scripts[basename] then
             tbl = basenameHandler[basename];
             -- not yet compile
             if not tbl then
                 tbl = {};
-                err = makeHandler( self.make, filesLua[basename].rpath, tbl );
+                err = makeHandler( self.make, scripts[basename].rpath, tbl );
                 if err then
                     return err;
                 end
@@ -138,8 +138,8 @@ local function parsedir( self, dir, authHandler )
         end
         
         -- make file handler
-        if filesLua[entry] then
-            err = makeHandler( self.make, filesLua[entry].rpath, stat );
+        if scripts[entry] then
+            err = makeHandler( self.make, scripts[entry].rpath, stat );
             if err then
                 return err;
             end
