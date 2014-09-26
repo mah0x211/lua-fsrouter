@@ -78,9 +78,25 @@ function Router:init( cfg )
 end
 
 
+-- make handler
+local function makeHandler( make, path, tbl )
+    local handler, err = make:make( path );
+    
+    if not err then
+        -- merge handler
+        for k, v in pairs( handler ) do
+            tbl[k] = v;
+        end
+    end
+    
+    return err;
+end
+
+
 local function parsedir( self, dir, authHandler )
     local entries, err = self.fs:readdir( dir );
-    local handler, filesLua;
+    local basenameHandler = {};
+    local handler, filesLua, basename, tbl;
 
     if err then
         return err;
@@ -88,13 +104,9 @@ local function parsedir( self, dir, authHandler )
 
     -- check AUTH_FILE
     if entries.fileAuth then
-        handler, err = self.make:make( entries.fileAuth.rpath );
+        err = makeHandler( self.make, entries.fileAuth.rpath, authHandler );
         if err then
             return err;
-        end
-        -- merge
-        for k,v in pairs( handler ) do
-            authHandler[k] = v;
         end
     end
 
@@ -104,15 +116,32 @@ local function parsedir( self, dir, authHandler )
         -- add auth handler
         stat.authn = authHandler.authn;
         stat.authz = authHandler.authz;
+        
+        -- make basename handler
+        basename = entry:match('^[^.]+');
+        if filesLua[basename] then
+            tbl = basenameHandler[basename];
+            -- not yet compile
+            if not tbl then
+                tbl = {};
+                err = makeHandler( self.make, filesLua[basename].rpath, tbl );
+                if err then
+                    return err;
+                end
+                basenameHandler[basename] = tbl;
+            end
+            
+            -- append general handler
+            for k, v in pairs( tbl ) do
+                stat[k] = v;
+            end
+        end
+        
         -- make file handler
         if filesLua[entry] then
-            handler, err = self.make:make( filesLua[entry].rpath );
+            err = makeHandler( self.make, filesLua[entry].rpath, stat );
             if err then
                 return err;
-            end
-            -- add page handler
-            for k,v in pairs( handler ) do
-                stat[k] = v;
             end
         end
         
