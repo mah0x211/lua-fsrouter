@@ -132,8 +132,7 @@ local function parsedir( self, dir, authHandler, filterHandler )
     scripts = entries.scripts;
     for entry, stat in pairs( entries.files ) do
         -- add auth handler
-        stat.authn = authHandler.authn;
-        stat.authz = authHandler.authz;
+        stat.auth = authHandler;
         -- add filter handler
         stat.filter = filterHandler;
         
@@ -147,21 +146,23 @@ local function parsedir( self, dir, authHandler, filterHandler )
                 err = makeHandler( self.make, scripts[basename].rpath, tbl );
                 if err then
                     return err;
+                else
+                    basenameHandler[basename] = tbl;
                 end
-                basenameHandler[basename] = tbl;
             end
             
-            -- append general handler
-            for k, v in pairs( tbl ) do
-                stat[k] = v;
-            end
+            -- set basename handler
+            stat.handler = util.table.copy( tbl );
         end
         
         -- make file handler
         if scripts[entry] then
-            err = makeHandler( self.make, scripts[entry].rpath, stat );
+            handler = stat.handler or {};
+            err = makeHandler( self.make, scripts[entry].rpath, handler );
             if err then
                 return err;
+            elseif handler ~= stat.handler then
+                stat.handler = handler;
             end
         end
         
