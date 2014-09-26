@@ -33,12 +33,23 @@ local path = require('path');
 -- constants
 local CONSTANTS = require('router.constants');
 local AUTH_FILE = CONSTANTS.AUTH_FILE;
+local FILTER_FILE = CONSTANTS.FILTER_FILE;
 local HANDLER_NAME = CONSTANTS.HANDLER_NAME;
 local M_AUTH = {
     authn   = 'authn',
     authz   = 'authz',
 };
 local M_AUTH_LIST = table.concat( util.table.keys( M_AUTH ), '|' );
+local M_FILTER = {
+    any     = '*',
+    head    = 'HEAD',
+    options = 'OPTIONS',
+    get     = 'GET',
+    post    = 'POST',
+    put     = 'PUT',
+    delete  = 'DELETE'
+};
+local M_FILTER_LIST = table.concat( util.table.keys( M_FILTER ), '|' );
 local M_METHOD = {
     head    = 'HEAD',
     options = 'OPTIONS',
@@ -67,6 +78,14 @@ local function setAuthRegistry( index )
     REGISTRY = {
         M_TABLE = M_AUTH,
         M_LIST  = M_AUTH_LIST,
+        M_INDEX = index
+    };
+end
+
+local function setFilterRegistry( index )
+    REGISTRY = {
+        M_TABLE = M_FILTER,
+        M_LIST  = M_FILTER_LIST,
         M_INDEX = index
     };
 end
@@ -131,12 +150,15 @@ function Make:init( fs, sandbox )
 end
 
 function Make:make( rpath )
+    local basename = path.basename( rpath );
     local src, err = self.fs:read( rpath );
     
     if err then
         return nil, err;
-    elseif path.basename( rpath ) == AUTH_FILE then
+    elseif basename == AUTH_FILE then
         return makeHandler( setAuthRegistry, src, self.sandbox, rpath );
+    elseif basename == FILTER_FILE then
+        return makeHandler( setFilterRegistry, src, self.sandbox, rpath );
     end
     
     return makeHandler( setMethodRegistry, src, self.sandbox, rpath );

@@ -93,7 +93,7 @@ local function makeHandler( make, path, tbl )
 end
 
 
-local function parsedir( self, dir, authHandler )
+local function parsedir( self, dir, authHandler, filterHandler )
     local entries, err = self.fs:readdir( dir );
     local basenameHandler = {};
     local handler, scripts, basename, tbl;
@@ -109,6 +109,24 @@ local function parsedir( self, dir, authHandler )
             return err;
         end
     end
+    -- check FILTER_FILE
+    if entries.filter then
+        handler, err = self.make:make( entries.filter.rpath );
+        if err then
+            return err;
+        end
+        
+        -- merge handler
+        for method, fn in pairs( handler ) do
+            tbl = filterHandler[method];
+            if not tbl then
+                tbl = { fn };
+                filterHandler[method] = tbl;
+            else
+                tbl[#tbl+1] = fn;
+            end
+        end
+    end
 
     -- check entry
     scripts = entries.scripts;
@@ -116,6 +134,8 @@ local function parsedir( self, dir, authHandler )
         -- add auth handler
         stat.authn = authHandler.authn;
         stat.authz = authHandler.authz;
+        -- add filter handler
+        stat.filter = filterHandler;
         
         -- make basename handler
         basename = entry:match('^[^.]+');
@@ -157,10 +177,11 @@ local function parsedir( self, dir, authHandler )
             end
         end
     end
-
+    
     -- recursive call
     for _, v in pairs( entries.dirs ) do
-        err = parsedir( self, v, util.table.copy( authHandler ) );
+        err = parsedir( self, v, util.table.copy( authHandler ), 
+                        util.table.clone( filterHandler ) );
         if err then
             return err;
         end
@@ -169,7 +190,7 @@ end
 
 
 function Router:readdir()
-    return parsedir( self, '/', {} );
+    return parsedir( self, '/', {}, {} );
 end
 
 

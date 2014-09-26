@@ -41,7 +41,8 @@ local lrex = require('rex_pcre');
 local CONSTANTS = require('router.constants');
 local LUA_EXT = CONSTANTS.LUA_EXT;
 local SPECIAL_FILES = {
-    [CONSTANTS.AUTH_FILE] = 'auth'
+    [CONSTANTS.AUTH_FILE] = 'auth',
+    [CONSTANTS.FILTER_FILE] = 'filter'
 };
 local MIME = require('router.mime');
 local MAGIC;
