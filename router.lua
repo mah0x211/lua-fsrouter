@@ -79,13 +79,32 @@ end
 
 
 -- make handler
-local function makeHandler( make, path, tbl )
-    local handler, err = make:make( path );
+local function makeAuthHandler( make, rpath, container )
+    local handler, err = make:asAuthHandler( rpath );
     
     if not err then
-        -- merge handler
-        for k, v in pairs( handler ) do
-            tbl[k] = v;
+        for method, fn in pairs( handler ) do
+            container[method] = fn;
+        end
+    end
+    
+    return err;
+end
+
+local function makeFilterHandler( make, rpath, container )
+    local handler, err = make:asFilterHandler( rpath );
+    
+    if not err then
+        local arr;
+        
+        for method, fn in pairs( handler ) do
+            arr = container[method];
+            if not arr then
+                arr = { fn };
+                container[method] = arr;
+            else
+                arr[#arr+1] = fn;
+            end
         end
     end
     
@@ -104,27 +123,16 @@ local function parsedir( self, dir, authHandler, filterHandler )
 
     -- check AUTH_FILE
     if entries.auth then
-        err = makeHandler( self.make, entries.auth.rpath, authHandler );
+        err = makeAuthHandler( entries.auth.rpath, authHandler );
         if err then
             return err;
         end
     end
     -- check FILTER_FILE
     if entries.filter then
-        handler, err = self.make:make( entries.filter.rpath );
+        err = makeFilterHandler( entries.filter.rpath, filterHandler );
         if err then
             return err;
-        end
-        
-        -- merge handler
-        for method, fn in pairs( handler ) do
-            tbl = filterHandler[method];
-            if not tbl then
-                tbl = { fn };
-                filterHandler[method] = tbl;
-            else
-                tbl[#tbl+1] = fn;
-            end
         end
     end
 
@@ -140,8 +148,7 @@ local function parsedir( self, dir, authHandler, filterHandler )
             tbl = basenameHandler[basename];
             -- not yet compile
             if not tbl then
-                tbl = {};
-                err = makeHandler( self.make, scripts[basename].rpath, tbl );
+                tbl, err = self.make:asFileHandler( scripts[basename].rpath );
                 if err then
                     return err;
                 else
@@ -155,12 +162,17 @@ local function parsedir( self, dir, authHandler, filterHandler )
         
         -- make file handler
         if scripts[entry] then
-            handler = stat.handler or {};
-            err = makeHandler( self.make, scripts[entry].rpath, handler );
+            tbl, err = self.make:asFileHandler( scripts[entry].rpath );
             if err then
                 return err;
-            elseif handler ~= stat.handler then
-                stat.handler = handler;
+            -- assign handler table
+            elseif not stat.handler then
+                stat.handler = tbl;
+            -- merge handler
+            else
+                for k, v in pairs( tbl ) do
+                    stat.handler[k] = v;
+                end
             end
         end
         
@@ -184,7 +196,7 @@ local function parsedir( self, dir, authHandler, filterHandler )
         err = self.route:set( stat.rpath, stat );
         if err then
             return ('failed to set route %s: %s'):format( stat.rpath, err );
-        -- add trailing-slash path if entry is index file
+        -- add dirname(with trailing-slash) if entry is index file
         elseif self.index[entry] then
             entry = stat.rpath:sub( 1, #stat.rpath - #entry );
             err = self.route:set( entry, stat );

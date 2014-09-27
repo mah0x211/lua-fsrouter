@@ -45,11 +45,10 @@ local SPECIAL_FILES = {
     [CONSTANTS.FILTER_FILE] = 'filter'
 };
 local MIME = require('router.mime');
+-- init for libmagic
 local MAGIC;
 do
     local mgc = require('magic');
-
-    -- init for libmagic
     MAGIC = mgc.open( mgc.MIME_ENCODING, mgc.NO_CHECK_COMPRESS, mgc.SYMLINK );
     MAGIC:load();
 end
@@ -62,9 +61,11 @@ function FS:init( docroot, followSymlinks, ignore )
     local rootpath, err = exists( docroot:sub(1,1) == '/' and docroot or
                           normalize( getcwd(), docroot ) );
 
+    -- set document root
     assert( not err, ('docroot %q does not exists'):format( docroot ) );
     self.docroot = rootpath;
     
+    -- set follow symlinks option
     if followSymlinks == nil then
         self.followSymlinks = false;
     else
@@ -74,6 +75,7 @@ function FS:init( docroot, followSymlinks, ignore )
         self.followSymlinks = followSymlinks;
     end
     
+    -- set ignore list
     if ignore then
         assert( typeof.table( ignore ), 'ignore must be type of table' );
         util.table.each( ignore, function( val, idx )

@@ -31,10 +31,7 @@ local typeof = util.typeof;
 local eval = util.eval;
 local path = require('path');
 -- constants
-local CONSTANTS = require('router.constants');
-local AUTH_FILE = CONSTANTS.AUTH_FILE;
-local FILTER_FILE = CONSTANTS.FILTER_FILE;
-local HANDLER_NAME = CONSTANTS.HANDLER_NAME;
+local HANDLER_NAME = require('router.constants').HANDLER_NAME;
 local M_AUTH = {
     authn   = 'authn',
     authz   = 'authz',
@@ -50,7 +47,7 @@ local M_FILTER = {
     delete  = 'DELETE'
 };
 local M_FILTER_LIST = table.concat( util.table.keys( M_FILTER ), '|' );
-local M_METHOD = {
+local M_FILE = {
     head    = 'HEAD',
     options = 'OPTIONS',
     get     = 'GET',
@@ -58,7 +55,7 @@ local M_METHOD = {
     put     = 'PUT',
     delete  = 'DELETE'
 };
-local M_METHOD_LIST = table.concat( util.table.keys( M_METHOD ), '|' );
+local M_FILE_LIST = table.concat( util.table.keys( M_FILE ), '|' );
 -- hook mechanism
 local REGISTRY = {};
 local DELEGATE = setmetatable({},{
@@ -90,13 +87,14 @@ local function setFilterRegistry( index )
     };
 end
 
-local function setMethodRegistry( index )
+local function setFileRegistry( index )
     REGISTRY = {
-        M_TABLE = M_METHOD,
-        M_LIST  = M_METHOD_LIST,
+        M_TABLE = M_FILE,
+        M_LIST  = M_FILE_LIST,
         M_INDEX = index
     };
 end
+
 
 local function make( src, env, pathname )
     local fn, err = eval( src, env, pathname );
@@ -113,29 +111,35 @@ local function make( src, env, pathname )
     return err;
 end
 
-local function makeHandler( setRegistry, src, env, pathname )
-    local handler = {};
-    local err;
+
+local function compile( fs, setRegistry, env, pathname )
+    local src, err = fs:read( pathname );
     
-    setRegistry( handler );
-    rawset( env, HANDLER_NAME, DELEGATE );
-    err = make( src, env, pathname );
-    rawset( env, HANDLER_NAME, nil );
-    
-    if err then
-        return nil, err;
-    -- set wildcard handler to all empty method
-    elseif handler['*'] then
-        for _, method in pairs( REGISTRY.M_TABLE ) do
-            if not handler[method] then
-                handler[method] = handler['*'];
+    if not err then
+        local handler = {};
+        
+        setRegistry( handler );
+        rawset( env, HANDLER_NAME, DELEGATE );
+        err = make( src, env, pathname );
+        rawset( env, HANDLER_NAME, nil );
+        if err then
+            return nil, err;
+        -- set wildcard handler to all empty method
+        elseif handler['*'] then
+            for _, method in pairs( REGISTRY.M_TABLE ) do
+                if not handler[method] then
+                    handler[method] = handler['*'];
+                end
             end
+            handler['*'] = nil;
         end
-        handler['*'] = nil;
+        
+        return handler;
     end
     
-    return handler;
+    return nil, err; 
 end
+
 
 -- class
 local halo = require('halo');
@@ -157,19 +161,16 @@ function Make:init( fs, sandbox )
     return self;
 end
 
-function Make:make( rpath )
-    local basename = path.basename( rpath );
-    local src, err = self.fs:read( rpath );
-    
-    if err then
-        return nil, err;
-    elseif basename == AUTH_FILE then
-        return makeHandler( setAuthRegistry, src, self.sandbox, rpath );
-    elseif basename == FILTER_FILE then
-        return makeHandler( setFilterRegistry, src, self.sandbox, rpath );
-    end
-    
-    return makeHandler( setMethodRegistry, src, self.sandbox, rpath );
+function Make:asAuthHandler( rpath )
+    return compile( self.fs, setAuthRegistry, self.sandbox, rpath );
+end
+
+function Make:asFilterHandler( rpath )
+    return compile( self.fs, setFilterRegistry, self.sandbox, rpath );
+end
+
+function Make:asFileHandler( rpath )
+    return compile( self.fs, setFileRegistry, self.sandbox, rpath );
 end
 
 return Make.exports;
