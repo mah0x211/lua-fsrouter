@@ -154,6 +154,8 @@ function FS:readdir( rpath )
                         files[entry] = info;
                     end
                 end
+                -- remove type field
+                info.type = nil;
             end
         end
         
