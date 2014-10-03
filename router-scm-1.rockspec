@@ -17,7 +17,7 @@ dependencies = {
     "process",
     "usher",
     "magic",
-    "lrexlib-pcre"
+    "lrexlib-oniguruma >= 2.7.2"
 }
 build = {
     type = "builtin",
