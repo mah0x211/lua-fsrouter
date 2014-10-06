@@ -137,7 +137,7 @@ function FS:readdir( rpath )
             field = SPECIAL_FILES[entry];
             -- AUTH_FILE and FILTER_FILE is highest priority file
             if field then
-                info, err = self:stat( rpath .. '/' .. entry );
+                info, err = self:stat( normalize( rpath, entry ) );
                 if err then
                     return nil, err;
                 elseif info.type == 'reg' then
