@@ -138,6 +138,8 @@ function FS:readdir( rpath )
                 elseif info.type == 'reg' then
                     result[field] = info;
                 end
+                -- remove type field
+                info.type = nil;
             -- not ignoring files
             elseif not self.ignore:match( entry ) then
                 info, err = self:stat( normalize( rpath, entry ) );
