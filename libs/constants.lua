@@ -24,7 +24,7 @@
 
 return {
     LUA_EXT         = '.lua',
-    AUTH_FILE       = '$auth.lua',
+    ACCESS_FILE     = '$access.lua',
     FILTER_FILE     = '$filter.lua',
     HANDLER_NAME    = 'Handle';
     -- regular expressions - PCRE

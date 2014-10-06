@@ -27,7 +27,9 @@ local usher = require('usher');
 local util = require('util');
 local typeof = util.typeof;
 local FS = require('router.fs');
-local Make = require('router.make');
+local AccessDDL = require('router.ddl.access');
+local FilterDDL = require('router.ddl.filter');
+local ContentDDL = require('router.ddl.content');
 -- constants
 local DEFAULT = {
     docroot = 'html',
@@ -38,10 +40,7 @@ local DEFAULT = {
 -- class
 local Router = require('halo').class.Router;
 
-
 function Router:init( cfg )
-    local err;
-    
     if not cfg then
         cfg = DEFAULT;
     else
@@ -68,51 +67,20 @@ function Router:init( cfg )
     };
     -- create fs
     self.fs = FS.new( cfg.docroot, cfg.followSymlinks, cfg.ignore );
-    -- create make
-    self.make = Make.new( self.fs, cfg.sandbox );
+    -- create ddl
+    self.ddl = {
+        access = AccessDDL.new(),
+        filter = FilterDDL.new( cfg.sandbox ),
+        content = ContentDDL.new( cfg.sandbox )
+    };
     -- create usher
-    self.route, err = usher.new('/@/');
-    assert( not err, err );
+    self.route = assert( usher.new('/@/') );
     
     return self;
 end
 
 
--- make handler
-local function makeAuthHandler( make, rpath, container )
-    local handler, err = make:asAuthHandler( rpath );
-    
-    if not err then
-        for method, fn in pairs( handler ) do
-            container[method] = fn;
-        end
-    end
-    
-    return err;
-end
-
-local function makeFilterHandler( make, rpath, container )
-    local handler, err = make:asFilterHandler( rpath );
-    
-    if not err then
-        local arr;
-        
-        for method, fn in pairs( handler ) do
-            arr = container[method];
-            if not arr then
-                arr = { fn };
-                container[method] = arr;
-            else
-                arr[#arr+1] = fn;
-            end
-        end
-    end
-    
-    return err;
-end
-
-
-local function parsedir( self, dir, authHandler, filterHandler )
+local function parsedir( self, dir, access, filter )
     local entries, err = self.fs:readdir( dir );
     local basenameHandler = {};
     local handler, scripts, basename, tbl;
@@ -121,16 +89,20 @@ local function parsedir( self, dir, authHandler, filterHandler )
         return err;
     end
 
-    -- check AUTH_FILE
-    if entries.auth then
-        err = makeAuthHandler( entries.auth.rpath, authHandler );
+    -- check $access.lua
+    if entries.access then
+        access, err = self.ddl.access( 
+            self.fs:realpath( entries.access.rpath ), false, access 
+        );
         if err then
             return err;
         end
     end
-    -- check FILTER_FILE
+    -- check $filter.lua
     if entries.filter then
-        err = makeFilterHandler( entries.filter.rpath, filterHandler );
+        filter, err = self.ddl.filter(
+            self.fs:realpath( entries.filter.rpath ), false, filter 
+        );
         if err then
             return err;
         end
@@ -139,8 +111,8 @@ local function parsedir( self, dir, authHandler, filterHandler )
     -- check entry
     scripts = entries.scripts;
     for entry, stat in pairs( entries.files ) do
-        -- add auth handler
-        stat.auth = authHandler;
+        -- add access handler
+        stat.access = access;
         
         -- make basename handler
         basename = entry:match('^[^.]+');
@@ -148,7 +120,9 @@ local function parsedir( self, dir, authHandler, filterHandler )
             tbl = basenameHandler[basename];
             -- not yet compile
             if not tbl then
-                tbl, err = self.make:asFileHandler( scripts[basename].rpath );
+                tbl, err = self.ddl.content(
+                    self.fs:realpath( scripts[basename].rpath ), false 
+                );
                 if err then
                     return err;
                 else
@@ -162,7 +136,9 @@ local function parsedir( self, dir, authHandler, filterHandler )
         
         -- make file handler
         if scripts[entry] then
-            tbl, err = self.make:asFileHandler( scripts[entry].rpath );
+            tbl, err = self.ddl.content(
+                self.fs:realpath( scripts[entry].rpath ), false 
+            );
             if err then
                 return err;
             -- assign handler table
@@ -179,7 +155,7 @@ local function parsedir( self, dir, authHandler, filterHandler )
         -- merge filter handler with file handler
         if stat.handler then
             tbl = stat.handler;
-            stat.handler = util.table.clone( filterHandler );
+            stat.handler = util.table.clone( filter or {} );
             for method, fn in pairs( tbl ) do
                 tbl = stat.handler[method];
                 if not tbl then
@@ -190,7 +166,7 @@ local function parsedir( self, dir, authHandler, filterHandler )
                 end
             end
         else
-            stat.handler = filterHandler;
+            stat.handler = filter;
         end
         
         err = self.route:set( stat.rpath, stat );
@@ -208,8 +184,7 @@ local function parsedir( self, dir, authHandler, filterHandler )
     
     -- recursive call
     for _, v in pairs( entries.dirs ) do
-        err = parsedir( self, v, util.table.copy( authHandler ), 
-                        util.table.clone( filterHandler ) );
+        err = parsedir( self, v, access, filter );
         if err then
             return err;
         end
@@ -218,7 +193,7 @@ end
 
 
 function Router:readdir()
-    return parsedir( self, '/', {}, {} );
+    return parsedir( self, '/' );
 end
 
 

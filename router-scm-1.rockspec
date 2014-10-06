@@ -11,13 +11,11 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "halo",
-    "util",
-    "path",
-    "process",
+    "lrexlib-oniguruma >= 2.7.2",
+    "process >= 1.0",
+    "magic >= 1.0",
+    "ddl >= 1.0",
     "usher",
-    "magic",
-    "lrexlib-oniguruma >= 2.7.2"
 }
 build = {
     type = "builtin",
@@ -26,6 +24,8 @@ build = {
         ["router.mime"] = "libs/mime.lua",
         ["router.constants"] = "libs/constants.lua",
         ["router.fs"] = "libs/fs.lua",
-        ["router.make"] = "libs/make.lua"
+        ["router.ddl.access"] = "ddl/access.lua",
+        ["router.ddl.filter"] = "ddl/filter.lua",
+        ["router.ddl.content"] = "ddl/content.lua"
     }
 }

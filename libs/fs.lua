@@ -43,7 +43,7 @@ lrex.setdefaultsyntax('PERL');
 local CONSTANTS = require('router.constants');
 local LUA_EXT = CONSTANTS.LUA_EXT;
 local SPECIAL_FILES = {
-    [CONSTANTS.AUTH_FILE] = 'auth',
+    [CONSTANTS.ACCESS_FILE] = 'access',
     [CONSTANTS.FILTER_FILE] = 'filter'
 };
 local MIME = require('router.mime');
@@ -135,7 +135,7 @@ function FS:readdir( rpath )
         -- list up
         for _, entry in ipairs( entries ) do
             field = SPECIAL_FILES[entry];
-            -- AUTH_FILE and FILTER_FILE is highest priority file
+            -- ACCESS_FILE and FILTER_FILE is highest priority file
             if field then
                 info, err = self:stat( normalize( rpath, entry ) );
                 if err then
