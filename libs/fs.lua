@@ -94,8 +94,13 @@ function FS:init( docroot, followSymlinks, ignore )
 end
 
 
+function FS:realpath( rpath )
+    return normalize( self.docroot, rpath );
+end
+
+
 function FS:read( rpath )
-    local pathname = normalize( self.docroot, rpath );
+    local pathname = self:realpath( rpath );
     local fh, err = io.open( pathname );
     local src;
     
