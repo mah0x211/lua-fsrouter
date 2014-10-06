@@ -1,7 +1,7 @@
 package = "router"
 version = "scm-1"
 source = {
-    url = "https://github.com/mah0x211/lua-router.git"
+    url = "git://github.com/mah0x211/lua-router.git"
 }
 description = {
     summary = "url router",
