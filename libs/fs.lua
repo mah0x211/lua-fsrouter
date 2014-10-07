@@ -154,9 +154,9 @@ function FS:readdir( rpath )
                 elseif info.type == 'dir' then
                     dirs[entry] = info.rpath;
                 elseif info.type == 'reg' then
-                    if info.ext == LUA_EXT then
-                        -- remove file extension LUA_EXT
-                        scripts[entry:sub( 1, #entry - #LUA_EXT )] = info;
+                    if entry:sub( 1, 1 ) == '$' and info.ext == LUA_EXT then
+                        -- remove dollar prefix and file extension LUA_EXT
+                        scripts[entry:sub( 2, #entry - #LUA_EXT )] = info;
                     else
                         files[entry] = info;
                     end
