@@ -80,12 +80,12 @@ function FS:init( docroot, followSymlinks, ignore )
     -- set ignore list
     if ignore then
         assert( typeof.table( ignore ), 'ignore must be type of table' );
-        util.table.each( ignore, function( val, idx )
+        for idx, val in ipairs( ignore ) do
             assert( typeof.string( val ),
                 ('ignore pattern#%d must be type of string'):format( idx )
             );
             table.insert( ignorePtns, #ignorePtns + 1, val );
-        end);
+        end
     end
     ignorePtns = '^(?:' .. table.concat( ignorePtns, '|' ) .. ')$';
     self.ignore = lrex.new( ignorePtns, 'i' );
