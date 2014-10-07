@@ -27,7 +27,6 @@
 --]]
 -- modules
 local util = require('util');
-local clone = util.table.clone;
 local keys = util.table.keys;
 local concat = table.concat;
 local isSugaredFn = require('router.ddl.helper').isSugaredFn;
@@ -49,7 +48,7 @@ Content.inherits {
     'ddl.DDL'
 };
 
-function Content:onStart( data )
+function Content:onStart()
     self.data = {};
     self.index = {};
 end

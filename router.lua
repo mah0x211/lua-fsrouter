@@ -83,7 +83,7 @@ end
 local function parsedir( self, dir, access, filter )
     local entries, err = self.fs:readdir( dir );
     local basenameHandler = {};
-    local handler, scripts, basename, tbl;
+    local scripts, basename, tbl;
 
     if err then
         return err;

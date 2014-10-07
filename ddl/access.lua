@@ -28,8 +28,6 @@
 -- modules
 local util = require('util');
 local typeof = util.typeof;
-local evalfile = util.evalfile;
-local path = require('path');
 local SATISFY = {
     all = true,
     any = true
