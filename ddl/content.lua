@@ -29,8 +29,9 @@
 local util = require('util');
 local clone = util.table.clone;
 local keys = util.table.keys;
-local typeof = util.typeof;
 local concat = table.concat;
+local isSugaredFn = require('router.ddl.helper').isSugaredFn;
+
 -- constants
 local METHOD_NAMES = {
     head    = 'HEAD',
@@ -68,6 +69,8 @@ function Content:Content( iscall, name, fn )
             self:abort( ('method %q must be function'):format( name ) );
         elseif index[methodName] then
             self:abort( ('method %q already defined'):format( name ) );
+        elseif isSugaredFn( 'Content', fn ) then
+            self:abort( ('invalid method declaration'):format( name ) );
         end
         
         self.data[methodName] = fn;
