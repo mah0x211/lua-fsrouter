@@ -24,6 +24,7 @@ build = {
         ["router.mime"] = "libs/mime.lua",
         ["router.constants"] = "libs/constants.lua",
         ["router.fs"] = "libs/fs.lua",
+        ["router.ddl.helper"] = "ddl/helper.lua",
         ["router.ddl.access"] = "ddl/access.lua",
         ["router.ddl.filter"] = "ddl/filter.lua",
         ["router.ddl.content"] = "ddl/content.lua"
