@@ -46,6 +46,10 @@ local SPECIAL_FILES = {
     [CONSTANTS.ACCESS_FILE] = 'access',
     [CONSTANTS.FILTER_FILE] = 'filter'
 };
+local DOT_ENTRIES = {
+    ['.'] = true,
+    ['..'] = true
+};
 local MIME = require('router.mime');
 -- init for libmagic
 local MAGIC;
@@ -87,7 +91,7 @@ function FS:init( docroot, followSymlinks, ignore )
             table.insert( ignorePtns, #ignorePtns + 1, val );
         end
     end
-    ignorePtns = '^(?:' .. table.concat( ignorePtns, '|' ) .. ')$';
+    ignorePtns = '(?:' .. table.concat( ignorePtns, '|' ) .. ')';
     self.ignore = lrex.new( ignorePtns, 'i' );
     
     return self;
@@ -134,35 +138,37 @@ function FS:readdir( rpath )
         
         -- list up
         for _, entry in ipairs( entries ) do
-            field = SPECIAL_FILES[entry];
-            -- ACCESS_FILE and FILTER_FILE is highest priority file
-            if field then
-                info, err = self:stat( normalize( rpath, entry ) );
-                if err then
-                    return nil, err;
-                elseif info.type == 'reg' then
-                    result[field] = info;
-                end
-                -- remove type field
-                info.type = nil;
-            -- not ignoring files
-            elseif not self.ignore:match( entry ) then
-                info, err = self:stat( normalize( rpath, entry ) );
-                -- error: stat
-                if err then
-                    return nil, err;
-                elseif info.type == 'dir' then
-                    dirs[entry] = info.rpath;
-                elseif info.type == 'reg' then
-                    if entry:sub( 1, 1 ) == '$' and info.ext == LUA_EXT then
-                        -- remove dollar prefix and file extension LUA_EXT
-                        scripts[entry:sub( 2, #entry - #LUA_EXT )] = info;
-                    else
-                        files[entry] = info;
+            if not DOT_ENTRIES[entry] then
+                field = SPECIAL_FILES[entry];
+                -- ACCESS_FILE and FILTER_FILE is highest priority file
+                if field then
+                    info, err = self:stat( normalize( rpath, entry ) );
+                    if err then
+                        return nil, err;
+                    elseif info.type == 'reg' then
+                        result[field] = info;
                     end
+                    -- remove type field
+                    info.type = nil;
+                -- not ignoring files
+                elseif not self.ignore:match( entry ) then
+                    info, err = self:stat( normalize( rpath, entry ) );
+                    -- error: stat
+                    if err then
+                        return nil, err;
+                    elseif info.type == 'dir' then
+                        dirs[entry] = info.rpath;
+                    elseif info.type == 'reg' then
+                        if entry:sub( 1, 1 ) == '$' and info.ext == LUA_EXT then
+                            -- remove dollar prefix and file extension LUA_EXT
+                            scripts[entry:sub( 2, #entry - #LUA_EXT )] = info;
+                        else
+                            files[entry] = info;
+                        end
+                    end
+                    -- remove type field
+                    info.type = nil;
                 end
-                -- remove type field
-                info.type = nil;
             end
         end
         

@@ -27,6 +27,6 @@ return {
     ACCESS_FILE     = '$access.lua',
     FILTER_FILE     = '$filter.lua',
     -- regular expressions - PCRE
-    IGNORE_PATTERNS = { '[.]+[^.]*' }
+    IGNORE_PATTERNS = { '^[.].*$' }
 };
 
