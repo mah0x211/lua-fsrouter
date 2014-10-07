@@ -25,15 +25,14 @@
   Created by Masatoshi Teruya on 14/10/07.
  
 --]]
--- modules
 
 local function isSugaredFn( label, fn )
-    local info = debug.getinfo( 4, 'Sl' );
+    local info = debug.getinfo( fn, 'S' );
     local pos = 1;
     local decl = '';
     
     for line in io.lines( info.source:sub(2) ) do
-        if pos >= info.currentline then
+        if pos >= info.linedefined then
             decl = decl .. line;
             if line:find( ')' ) then
                 return decl:gsub( '%s', '' )
