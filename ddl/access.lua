@@ -27,38 +27,14 @@
 --]]
 -- modules
 local util = require('util');
-local typeof = util.typeof;
-local SATISFY = {
-    all = true,
-    any = true
+local keys = util.table.keys;
+local concat = table.concat;
+local isSugaredFn = require('router.ddl.helper').isSugaredFn;
+
+-- constants
+local METHOD_NAMES = {
+    allow   = 'allow'
 };
-local RESTRICT_VALID_USER = 1;
-local RESTRICT_ROLE = 2
-local RESTRICT = {
-    ['valid-user']  = RESTRICT_VALID_USER,
-    role            = RESTRICT_ROLE,
-};
-
-
-local function setaddr( self, field, val )
-    if not typeof.string( val ) then
-        self:abort('value must be string');
-    else
-        local addr = self.data.addr;
-        local addrIdx = self.index[field];
-        local idx = addrIdx[val];
-        
-        if not idx then
-            idx = #addr + 1;
-            addr[idx] = { field, val };
-            addrIdx[val] = idx;
-        else
-            val = table.remove( self.data.addr, idx );
-            addr[#addr] = val;
-        end
-    end
-end
-
 
 -- class
 local Access = require('halo').class.Access;
@@ -67,69 +43,32 @@ Access.inherits {
     'ddl.DDL'
 };
 
-function Access:onStart( data )
-    self.data = data and util.table.clone( data ) or {
-        addr = {},
-        restrict = {}
-    };
-    self.index = {
-        allow = {},
-        deny = {}
-    };
+function Access:onStart()
+    self.data = {};
+    self.index = {};
 end
 
-
-function Access:allow( iscall, val )
-    if not iscall then
-        self:abort('attempt to add new index');
-    end
-    setaddr( self, 'allow', val );
-end
-
-function Access:deny( iscall, val )
-    if not iscall then
-        self:abort('attempt to add new index');
-    end
-    setaddr( self, 'deny', val );
-end
-
-
-function Access:satisfy( iscall, val )
-    if not iscall then
-        self:abort('attempt to add new index');
-    elseif not SATISFY[val] then
-        self:abort('value must be "all" or "any"');
-    end
-    
-    self.data.satisfy = val;
-end
-
-
-function Access:restrict( iscall, val )
-    local restrict = self.data.restrict;
-    
-    if not iscall then
-        self:abort('attempt to add new index');
-    elseif not RESTRICT[val] then
-        self:abort('value must be "valid-user" or "role"');
-    elseif val == 'valid-user' then
-        restrict[val] = true;
+function Access:Access( iscall, name, fn )
+    if iscall then
+        self:abort('attempt to call Access');
     else
-        return function( role )
-            local i = 1;
-            
-            if type( role ) ~= 'table' then
-                self:abort('role must be table');
-            end
-            -- check fields
-            for _, v in pairs( role ) do
-                if _ ~= i then
-                    self:abort( ('invalid role field %q = %q'):format( _, tostring( v ) ) );
-                end
-                i = i + 1;
-            end
-            restrict.role = role;
+        local index = self.index;
+        local methodName = METHOD_NAMES[name];
+        
+        if not methodName then
+            self:abort( ('method name must be Access:<%s>'):format( 
+                concat( keys( METHOD_NAMES ), '|' )
+            ));
+        elseif type( fn ) ~= 'function' then
+            self:abort( ('method %q must be function'):format( name ) );
+        elseif index[methodName] then
+            self:abort( ('method %q already defined'):format( name ) );
+        elseif isSugaredFn( 'Access', fn ) then
+            self:abort( ('invalid method declaration'):format( name ) );
         end
+        
+        self.data[methodName] = fn;
+        index[methodName] = true;
     end
 end
 

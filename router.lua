@@ -69,7 +69,7 @@ function Router:init( cfg )
     self.fs = FS.new( cfg.docroot, cfg.followSymlinks, cfg.ignore );
     -- create ddl
     self.ddl = {
-        access = AccessDDL.new(),
+        access = AccessDDL.new( cfg.sandbox ),
         filter = FilterDDL.new( cfg.sandbox ),
         content = ContentDDL.new( cfg.sandbox )
     };
@@ -98,6 +98,7 @@ local function parsedir( self, dir, access, filter )
             return err;
         end
     end
+    
     -- check $filter.lua
     if entries.filter then
         filter, err = self.ddl.filter(

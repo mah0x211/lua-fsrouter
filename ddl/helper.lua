@@ -35,8 +35,8 @@ local function isSugaredFn( label, fn )
         if pos >= info.linedefined then
             decl = decl .. line;
             if line:find( ')' ) then
-                return decl:gsub( '%s', '' )
-                           :find( label .. ':', 1, true ) and true or false;
+                return decl:gsub( '%s', '' ):find( label .. ':', 1, true ) and 
+                       true or false;
             end
         end
         pos = pos + 1;
