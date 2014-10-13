@@ -57,7 +57,7 @@ end
 
 function Filter:Filter( iscall, name, fn )
     if iscall then
-        self:abort('attempt to call Content');
+        self:abort('attempt to call Filter');
     else
         local index = self.index;
         local methodName = METHOD_NAMES[name];
