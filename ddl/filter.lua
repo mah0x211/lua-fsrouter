@@ -27,14 +27,13 @@
 --]]
 -- modules
 local util = require('util');
-local clone = util.table.clone;
 local keys = util.table.keys;
 local concat = table.concat;
 local isSugaredFn = require('router.ddl.helper').isSugaredFn;
 
 -- constants
 local METHOD_NAMES = {
-    any     = '*',
+    any     = 'ANY',
     head    = 'HEAD',
     options = 'OPTIONS',
     get     = 'GET',
@@ -50,11 +49,30 @@ Filter.inherits {
     'ddl.DDL'
 };
 
-function Filter:onStart( data )
-    self.data = data and clone( data ) or {};
+function Filter:onStart( filter )
+    self.filter = filter;
+    self.data = {};
     self.index = {};
 end
 
+-- merge filter with previous filter
+function Filter:onComplete()
+    local filter = self.filter or {};
+    local tbl;
+    
+    for method, fn in pairs( self.data ) do
+        tbl = filter[method];
+        if tbl then
+            tbl[#tbl+1] = fn;
+        else
+            filter[method] = { fn };
+        end
+    end
+    
+    return filter;
+end
+
+-- register methods
 function Filter:Filter( iscall, name, fn )
     if iscall then
         self:abort('attempt to call Filter');
@@ -76,11 +94,16 @@ function Filter:Filter( iscall, name, fn )
         end
         
         index[methodName] = true;
-        if not methodTbl then
-            methodTbl = { fn };
-            self.data[methodName] = methodTbl;
+        -- to set ANY filter to other method filter
+        if methodName == 'ANY' then
+            for _, methodName in pairs( METHOD_NAMES ) do
+                -- set filter if method does not exists
+                if methodName ~= 'ANY' and not self.data[methodName] then
+                    self.data[methodName] = fn;
+                end 
+            end
         else
-            methodTbl[#methodTbl+1] = fn;
+            self.data[methodName] = fn;
         end
     end
 end

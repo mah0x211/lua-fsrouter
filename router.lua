@@ -82,8 +82,7 @@ end
 
 local function parsedir( self, dir, access, filter )
     local entries, err = self.fs:readdir( dir );
-    local basenameHandler = {};
-    local scripts, basename, tbl;
+    local scripts;
 
     if err then
         return err;
@@ -108,68 +107,25 @@ local function parsedir( self, dir, access, filter )
             return err;
         end
     end
-
+    
     -- check entry
     scripts = entries.scripts;
     for entry, stat in pairs( entries.files ) do
         -- add access handler
         stat.access = access;
         
-        -- make basename handler
-        basename = entry:match('^[^.]+');
-        if scripts[basename] then
-            tbl = basenameHandler[basename];
-            -- not yet compile
-            if not tbl then
-                tbl, err = self.ddl.content(
-                    self.fs:realpath( scripts[basename].rpath ), false 
-                );
-                if err then
-                    return err;
-                else
-                    basenameHandler[basename] = tbl;
-                end
-            end
-            
-            -- set basename handler
-            stat.handler = util.table.copy( tbl );
-        end
-        
         -- make file handler
         if scripts[entry] then
-            tbl, err = self.ddl.content(
-                self.fs:realpath( scripts[entry].rpath ), false 
+            -- assign handler table
+            stat.handler, err = self.ddl.content(
+                self.fs:realpath( scripts[entry].rpath ), false, filter
             );
             if err then
                 return err;
-            -- assign handler table
-            elseif not stat.handler then
-                stat.handler = tbl;
-            -- merge handler
-            else
-                for k, v in pairs( tbl ) do
-                    stat.handler[k] = v;
-                end
             end
         end
         
-        -- merge filter handler with file handler
-        if stat.handler then
-            tbl = stat.handler;
-            stat.handler = util.table.clone( filter or {} );
-            for method, fn in pairs( tbl ) do
-                tbl = stat.handler[method];
-                if not tbl then
-                    tbl = { fn };
-                    stat.handler[method] = tbl;
-                else
-                    tbl[#tbl+1] = fn;
-                end
-            end
-        else
-            stat.handler = filter;
-        end
-        
+        -- set state to router
         err = self.route:set( stat.rpath, stat );
         if err then
             return ('failed to set route %s: %s'):format( stat.rpath, err );

@@ -27,6 +27,7 @@
 --]]
 -- modules
 local util = require('util');
+local copy = util.table.copy;
 local keys = util.table.keys;
 local concat = table.concat;
 local isSugaredFn = require('router.ddl.helper').isSugaredFn;
@@ -48,11 +49,30 @@ Content.inherits {
     'ddl.DDL'
 };
 
-function Content:onStart()
+function Content:onStart( filter )
+    self.filter = filter;
     self.data = {};
     self.index = {};
 end
 
+function Content:onComplete()
+    local data = self.data;
+    
+    -- merge handler with filter
+    if self.filter then
+        for methodName, tbl in pairs( self.filter ) do
+            if data[methodName] then
+                tbl = copy( tbl );
+                tbl[#tbl+1] = data[methodName];
+                data[methodName] = tbl;
+            end
+        end
+    end
+    
+    return data;
+end
+
+-- register methods
 function Content:Content( iscall, name, fn )
     if iscall then
         self:abort('attempt to call Content');
