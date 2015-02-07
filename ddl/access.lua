@@ -33,7 +33,7 @@ local isSugaredFn = require('router.ddl.helper').isSugaredFn;
 
 -- constants
 local METHOD_NAMES = {
-    allow   = 'allow'
+    authorize   = 'authorize'
 };
 
 -- class
@@ -48,6 +48,7 @@ function Access:onStart()
     self.index = {};
 end
 
+-- register methods
 function Access:Access( iscall, name, fn )
     if iscall then
         self:abort('attempt to call Access');
