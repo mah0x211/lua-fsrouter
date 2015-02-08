@@ -90,9 +90,7 @@ local function parsedir( self, dir, access, filter )
 
     -- check $access.lua
     if entries.access then
-        access, err = self.ddl.access( 
-            self.fs:realpath( entries.access.rpath ), false, access 
-        );
+        access, err = self.ddl.access( entries.access.pathname, false, access );
         if err then
             return err;
         end
@@ -100,9 +98,7 @@ local function parsedir( self, dir, access, filter )
     
     -- check $filter.lua
     if entries.filter then
-        filter, err = self.ddl.filter(
-            self.fs:realpath( entries.filter.rpath ), false, filter 
-        );
+        filter, err = self.ddl.filter( entries.filter.pathname, false, filter );
         if err then
             return err;
         end
@@ -118,7 +114,7 @@ local function parsedir( self, dir, access, filter )
         if scripts[entry] then
             -- assign handler table
             stat.handler, err = self.ddl.content(
-                self.fs:realpath( scripts[entry].rpath ), false, filter
+                scripts[entry].pathname, false, filter
             );
             if err then
                 return err;
