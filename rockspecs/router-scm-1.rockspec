@@ -11,11 +11,14 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
+    "ddl >= 1.0.1",
+    "halo >= 1.1.0",
     "lrexlib-oniguruma >= 2.7.2",
-    "process >= 1.4.0",
     "magic >= 1.0.0",
-    "ddl >= 1.0.0",
-    "usher",
+    "path >= 1.0.1",
+    "process >= 1.4.0",
+    "util >= 1.3.3",
+    "usher"
 }
 build = {
     type = "builtin",
