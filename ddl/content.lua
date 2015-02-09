@@ -68,6 +68,9 @@ function Content:onComplete()
             end
         end
     end
+    -- remove unused data
+    self.filter = nil;
+    self.index = nil;
     
     return data;
 end

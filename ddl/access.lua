@@ -48,6 +48,14 @@ function Access:onStart()
     self.index = {};
 end
 
+function Access:onComplete()
+    -- remove unused data
+    self.filter = nil;
+    self.index = nil;
+    
+    return self.data;
+end
+
 -- register methods
 function Access:Access( iscall, name, fn )
     if iscall then

@@ -68,6 +68,9 @@ function Filter:onComplete()
             filter[method] = { fn };
         end
     end
+    -- remove unused data
+    self.filter = nil;
+    self.index = nil;
     
     return filter;
 end
