@@ -12,9 +12,9 @@ description = {
 dependencies = {
     "lua >= 5.1",
     "lrexlib-oniguruma >= 2.7.2",
-    "process >= 1.0",
-    "magic >= 1.0",
-    "ddl >= 1.0",
+    "process >= 1.4.0",
+    "magic >= 1.0.0",
+    "ddl >= 1.0.0",
     "usher",
 }
 build = {
