@@ -129,10 +129,12 @@ function FS:readdir( rpath )
         local result = {
             dirs = {},
             files = {},
+            wildcards = {},
             scripts = {}
         };
         local dirs = result.dirs;
         local files = result.files;
+        local wildcards = result.wildcards;
         local scripts = result.scripts;
         local info, field;
         
@@ -161,7 +163,12 @@ function FS:readdir( rpath )
                     elseif info.type == 'reg' then
                         if entry:sub( 1, 1 ) == '$' and info.ext == LUA_EXT then
                             -- remove dollar prefix and file extension LUA_EXT
-                            scripts[entry:sub( 2, #entry - #LUA_EXT )] = info;
+                            entry = entry:sub( 2, #entry - #LUA_EXT );
+                            if entry:sub( 1, 2 ) == '*.' then
+                                wildcards[entry:sub(2)] = info;
+                            else
+                                scripts[entry] = info;
+                            end
                         else
                             files[entry] = info;
                         end

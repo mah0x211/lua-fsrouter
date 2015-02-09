@@ -25,6 +25,7 @@
 -- modules
 local usher = require('usher');
 local util = require('util');
+local clone = util.table.clone;
 local typeof = util.typeof;
 local FS = require('router.fs');
 local AccessDDL = require('router.ddl.access');
@@ -82,13 +83,14 @@ end
 
 local function parsedir( self, dir, access, filter )
     local entries, err = self.fs:readdir( dir );
+    local wildcards = entries.wildcards;
     local scripts;
 
     if err then
         return err;
     end
 
-    -- check $access.lua
+    -- compile $access.lua
     if entries.access then
         access, err = self.ddl.access( entries.access.pathname, false, access );
         if err then
@@ -96,9 +98,17 @@ local function parsedir( self, dir, access, filter )
         end
     end
     
-    -- check $filter.lua
+    -- compile $filter.lua
     if entries.filter then
         filter, err = self.ddl.filter( entries.filter.pathname, false, filter );
+        if err then
+            return err;
+        end
+    end
+    
+    -- compile wildcard handler: $*.[ext.]lua
+    for _, stat in pairs( wildcards ) do
+        stat.handler, err = self.ddl.content( stat.pathname, false, filter );
         if err then
             return err;
         end
@@ -119,6 +129,9 @@ local function parsedir( self, dir, access, filter )
             if err then
                 return err;
             end
+        -- assign wildcard handler
+        elseif wildcards[stat.ext] then
+            stat.handler = clone( wildcards[stat.ext].handler );
         end
         
         -- set state to router
