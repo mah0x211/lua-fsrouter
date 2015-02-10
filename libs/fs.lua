@@ -36,9 +36,7 @@ local readdir = path.readdir;
 local stat = path.stat;
 local extname = path.extname;
 local getcwd = require('process').getcwd;
-local lrex = require('rex_onig');
--- init lrex-oniguruma
-lrex.setdefaultsyntax('PERL');
+local lrex = require('rex_pcre');
 -- constants
 local CONSTANTS = require('router.constants');
 local LUA_EXT = CONSTANTS.LUA_EXT;
