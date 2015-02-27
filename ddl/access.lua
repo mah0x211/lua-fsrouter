@@ -76,7 +76,7 @@ function Access:Access( iscall, name, fn )
             self:abort( ('invalid method declaration'):format( name ) );
         end
         
-        self.data[methodName] = fn;
+        self.data[methodName] = { fn };
         index[methodName] = true;
     end
 end

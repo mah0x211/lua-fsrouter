@@ -63,7 +63,7 @@ function Content:onComplete()
         for methodName, tbl in pairs( self.filter ) do
             if data[methodName] then
                 tbl = copy( tbl );
-                tbl[#tbl+1] = data[methodName];
+                tbl[#tbl+1] = data[methodName][1];
                 data[methodName] = tbl;
             end
         end
@@ -95,7 +95,7 @@ function Content:Content( iscall, name, fn )
             self:abort( ('invalid method declaration'):format( name ) );
         end
         
-        self.data[methodName] = fn;
+        self.data[methodName] = { fn };
         index[methodName] = true;
     end
 end
