@@ -150,7 +150,9 @@ local function parsedir( self, dir, access, filter )
     
     -- recursive call
     for _, v in pairs( entries.dirs ) do
-        err = parsedir( self, v, access, filter );
+        err = parsedir(
+            self, v, access and clone( access ), filter and clone( filter )
+        );
         if err then
             return err;
         end
