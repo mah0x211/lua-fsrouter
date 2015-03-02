@@ -39,22 +39,38 @@ local METHOD_NAMES = {
 -- class
 local Access = require('halo').class.Access;
 
+
 Access.inherits {
     'ddl.DDL'
 };
 
-function Access:onStart()
+
+function Access:onStart( access )
+    self.access = access;
     self.data = {};
     self.index = {};
 end
 
+
 function Access:onComplete()
+    local access = self.access or {};
+    local tbl;
+    
+    for method, fn in pairs( self.data ) do
+        tbl = access[method];
+        if tbl then
+            tbl[#tbl+1] = fn;
+        else
+            access[method] = { fn };
+        end
+    end
     -- remove unused data
-    self.filter = nil;
+    self.access = nil;
     self.index = nil;
     
-    return self.data;
+    return access;
 end
+
 
 -- register methods
 function Access:Access( iscall, name, fn )
@@ -76,7 +92,7 @@ function Access:Access( iscall, name, fn )
             self:abort( ('invalid method declaration'):format( name ) );
         end
         
-        self.data[methodName] = { fn };
+        self.data[methodName] = fn;
         index[methodName] = true;
     end
 end
