@@ -25,6 +25,7 @@ build = {
     modules = {
         router = "router.lua",
         ["router.mime"] = "libs/mime.lua",
+        ["router.mime.default"] = "libs/mime_default.lua",
         ["router.constants"] = "libs/constants.lua",
         ["router.fs"] = "libs/fs.lua",
         ["router.ddl.helper"] = "ddl/helper.lua",

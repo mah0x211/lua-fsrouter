@@ -48,7 +48,6 @@ local DOT_ENTRIES = {
     ['.'] = true,
     ['..'] = true
 };
-local MIME = require('router.mime');
 -- init for libmagic
 local MAGIC;
 do
@@ -59,7 +58,7 @@ end
 -- class
 local FS = require('halo').class.File;
 
-function FS:init( docroot, followSymlinks, ignore )
+function FS:init( docroot, followSymlinks, ignore, mime )
     local ignorePtns = util.table.copy( CONSTANTS.IGNORE_PATTERNS );
     -- change relative-path to absolute-path
     local rootpath, err = exists( docroot:sub(1,1) == '/' and docroot or
@@ -91,6 +90,9 @@ function FS:init( docroot, followSymlinks, ignore )
     end
     ignorePtns = '(?:' .. table.concat( ignorePtns, '|' ) .. ')';
     self.ignore = lrex.new( ignorePtns, 'i' );
+    
+    -- set mime extmap
+    self.mime = mime;
     
     return self;
 end
@@ -200,7 +202,7 @@ function FS:stat( rpath )
             rpath = rpath,
             ext = ext,
             charset = MAGIC:file( pathname ),
-            mime = MIME[ext],
+            mime = self.mime[ext],
             ctime = info.ctime,
             mtime = info.mtime,
         };

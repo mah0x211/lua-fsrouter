@@ -31,6 +31,7 @@ local FS = require('router.fs');
 local AccessDDL = require('router.ddl.access');
 local FilterDDL = require('router.ddl.filter');
 local ContentDDL = require('router.ddl.content');
+local MIME = require('router.mime');
 -- constants
 local DEFAULT = {
     docroot = 'html',
@@ -66,8 +67,12 @@ function Router:init( cfg )
         [cfg.index] = true,
         ['@'..cfg.index] = true
     };
+    -- create mimemap
+    self.mime = MIME.new();
     -- create fs
-    self.fs = FS.new( cfg.docroot, cfg.followSymlinks, cfg.ignore );
+    self.fs = FS.new(
+        cfg.docroot, cfg.followSymlinks, cfg.ignore, self.mime:extMap()
+    );
     -- create ddl
     self.ddl = {
         access = AccessDDL.new( cfg.sandbox ),
