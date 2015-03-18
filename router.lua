@@ -92,7 +92,7 @@ end
 
 
 function Router:readMIMETypes( mimeTypes )
-    if typeof.string( mimeTypes ) then
+    if not typeof.string( mimeTypes ) then
         return false, 'mimeTypes must be string';
     end
     
