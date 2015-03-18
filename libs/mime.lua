@@ -34,15 +34,18 @@ local DEFAULT_MIME = require('router.mime.default');
 local function parseMIME( str, typeMap, extMap )
     local list, ext, mime;
     
+    --[[
+        mime format:
+            mime/type       ext1 ext2 ext3;
+    --]]
     for line in string.gmatch( str, '[^\n\r]+') do
         if not line:find('^%s*#') then
             list = split( line, '%s+' );
             mime = list[1];
             for i = 2, #list do
-                ext = '.' .. list[i]:match('[%.%w]+');
-                if not extMap[ext] then
+                ext = list[i]:match('[%w]+');
+                if ext and not extMap[ext] then
                     extMap[ext] = mime;
-                    
                     if not typeMap[mime] then
                         typeMap[mime] = { ext };
                     else

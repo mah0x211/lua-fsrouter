@@ -195,6 +195,11 @@ function FS:stat( rpath )
     -- regular file
     elseif info.type == 'reg' then
         local ext = extname( rpath );
+        local extkey;
+        
+        if ext then
+            extkey = ext:gsub('^.', '' );
+        end
         
         return {
             ['type'] = info.type,
@@ -202,7 +207,7 @@ function FS:stat( rpath )
             rpath = rpath,
             ext = ext,
             charset = MAGIC:file( pathname ),
-            mime = self.mime[ext],
+            mime = self.mime[extkey],
             ctime = info.ctime,
             mtime = info.mtime,
         };
