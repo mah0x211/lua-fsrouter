@@ -86,6 +86,22 @@ function Router:init( cfg )
 end
 
 
+function Router:mimeTypes()
+    return clone( self.mime:typeMap() );
+end
+
+
+function Router:readMIMETypes( mimeTypes )
+    if typeof.string( mimeTypes ) then
+        return false, 'mimeTypes must be string';
+    end
+    
+    self.mime:readTypes( mimeTypes );
+    
+    return true;
+end
+
+
 local function parsedir( self, dir, access, filter )
     local entries, err = self.fs:readdir( dir );
     local wildcards = entries.wildcards;
