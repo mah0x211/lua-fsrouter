@@ -59,6 +59,7 @@ end
 local FS = require('halo').class.File;
 
 function FS:init( docroot, followSymlinks, ignore, mime )
+    local own = protected( self );
     local ignorePtns = util.table.copy( CONSTANTS.IGNORE_PATTERNS );
     -- change relative-path to absolute-path
     local rootpath, err = exists( docroot:sub(1,1) == '/' and docroot or
@@ -66,16 +67,16 @@ function FS:init( docroot, followSymlinks, ignore, mime )
 
     -- set document root
     assert( not err, ('docroot %q does not exists'):format( docroot ) );
-    self.docroot = rootpath;
+    own.docroot = rootpath;
     
     -- set follow symlinks option
     if followSymlinks == nil then
-        self.followSymlinks = false;
+        own.followSymlinks = false;
     else
         assert( typeof.boolean( followSymlinks ),
             'followSymlinks must be type of boolean'
         );
-        self.followSymlinks = followSymlinks;
+        own.followSymlinks = followSymlinks;
     end
     
     -- set ignore list
@@ -89,17 +90,17 @@ function FS:init( docroot, followSymlinks, ignore, mime )
         end
     end
     ignorePtns = '(?:' .. table.concat( ignorePtns, '|' ) .. ')';
-    self.ignore = lrex.new( ignorePtns, 'i' );
+    own.ignore = lrex.new( ignorePtns, 'i' );
     
     -- set mime extmap
-    self.mime = mime;
+    own.mime = mime;
     
     return self;
 end
 
 
 function FS:realpath( rpath )
-    return normalize( self.docroot, rpath );
+    return normalize( protected( self ).docroot, rpath );
 end
 
 
@@ -123,7 +124,8 @@ end
 
 
 function FS:readdir( rpath )
-    local entries, err = readdir( normalize( self.docroot, rpath ) );
+    local own = protected( self );
+    local entries, err = readdir( normalize( own.docroot, rpath ) );
     
     if not err then
         local result = {
@@ -153,7 +155,7 @@ function FS:readdir( rpath )
                     -- remove type field
                     info.type = nil;
                 -- not ignoring files
-                elseif not self.ignore:match( entry ) then
+                elseif not own.ignore:match( entry ) then
                     info, err = self:stat( normalize( rpath, entry ) );
                     -- error: stat
                     if err then
@@ -187,8 +189,9 @@ end
 
 
 function FS:stat( rpath )
-    local pathname = normalize( self.docroot, rpath );
-    local info, err = stat( pathname, self.followSymlinks, true );
+    local own = protected( self );
+    local pathname = normalize( own.docroot, rpath );
+    local info, err = stat( pathname, own.followSymlinks, true );
     
     if err then
         return nil, ('failed to stat: %s - %s'):format( rpath, err );
@@ -207,7 +210,7 @@ function FS:stat( rpath )
             rpath = rpath,
             ext = ext,
             charset = MAGIC:file( pathname ),
-            mime = self.mime[extkey],
+            mime = own.mime[extkey],
             ctime = info.ctime,
             mtime = info.mtime,
         };

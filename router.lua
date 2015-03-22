@@ -43,7 +43,9 @@ local DEFAULT = {
 local Router = require('halo').class.Router;
 
 function Router:init( cfg )
-    if not cfg then
+    local own = protected( self );
+    
+    if cfg == nil then
         cfg = DEFAULT;
     else
         assert( typeof.table( cfg ), 'cfg must be type of table' );
@@ -62,32 +64,41 @@ function Router:init( cfg )
         end
     end
     
+    -- copy values into protected table
+    for k, v in pairs( cfg ) do
+        own[k] = v;
+    end
+    
     -- create index table
-    self.index = {
+    own.index = {
         [cfg.index] = true,
         ['@'..cfg.index] = true
     };
+    
     -- create mimemap
-    self.mime = MIME.new();
+    own.mime = MIME.new();
+    
     -- create fs
-    self.fs = FS.new(
-        cfg.docroot, cfg.followSymlinks, cfg.ignore, self.mime:extMap()
+    own.fs = FS.new(
+        cfg.docroot, cfg.followSymlinks, cfg.ignore, own.mime:extMap()
     );
+    
     -- create ddl
-    self.ddl = {
+    own.ddl = {
         access = AccessDDL.new( cfg.sandbox ),
         filter = FilterDDL.new( cfg.sandbox ),
         content = ContentDDL.new( cfg.sandbox )
     };
+    
     -- create usher
-    self.route = assert( usher.new('/@/') );
+    own.route = assert( usher.new('/@/') );
     
     return self;
 end
 
 
 function Router:mimeTypes()
-    return clone( self.mime:typeMap() );
+    return clone( protected(self).mime:typeMap() );
 end
 
 
@@ -96,14 +107,14 @@ function Router:readMIMETypes( mimeTypes )
         return false, 'mimeTypes must be string';
     end
     
-    self.mime:readTypes( mimeTypes );
+    protected(self).mime:readTypes( mimeTypes );
     
     return true;
 end
 
 
-local function parsedir( self, dir, access, filter )
-    local entries, err = self.fs:readdir( dir );
+local function parsedir( own, dir, access, filter )
+    local entries, err = own.fs:readdir( dir );
     local wildcards = entries.wildcards;
     local scripts;
 
@@ -113,7 +124,7 @@ local function parsedir( self, dir, access, filter )
 
     -- compile $access.lua
     if entries.access then
-        access, err = self.ddl.access( entries.access.pathname, false, access );
+        access, err = own.ddl.access( entries.access.pathname, false, access );
         if err then
             return err;
         end
@@ -121,7 +132,7 @@ local function parsedir( self, dir, access, filter )
     
     -- compile $filter.lua
     if entries.filter then
-        filter, err = self.ddl.filter( entries.filter.pathname, false, filter );
+        filter, err = own.ddl.filter( entries.filter.pathname, false, filter );
         if err then
             return err;
         end
@@ -129,7 +140,7 @@ local function parsedir( self, dir, access, filter )
     
     -- compile wildcard handler: $*.[ext.]lua
     for _, stat in pairs( wildcards ) do
-        stat.handler, err = self.ddl.content( stat.pathname, false, filter );
+        stat.handler, err = own.ddl.content( stat.pathname, false, filter );
         if err then
             return err;
         end
@@ -144,7 +155,7 @@ local function parsedir( self, dir, access, filter )
         -- make file handler
         if scripts[entry] then
             -- assign handler table
-            stat.handler, err = self.ddl.content(
+            stat.handler, err = own.ddl.content(
                 scripts[entry].pathname, false, filter
             );
             if err then
@@ -156,13 +167,13 @@ local function parsedir( self, dir, access, filter )
         end
         
         -- set state to router
-        err = self.route:set( stat.rpath, stat );
+        err = own.route:set( stat.rpath, stat );
         if err then
             return ('failed to set route %s: %s'):format( stat.rpath, err );
         -- add dirname(with trailing-slash) if entry is index file
-        elseif self.index[entry] then
+        elseif own.index[entry] then
             entry = stat.rpath:sub( 1, #stat.rpath - #entry );
-            err = self.route:set( entry, stat );
+            err = own.route:set( entry, stat );
             if err then
                 return ('failed to set index route %s: %s'):format( entry, err );
             end
@@ -172,7 +183,7 @@ local function parsedir( self, dir, access, filter )
     -- recursive call
     for _, v in pairs( entries.dirs ) do
         err = parsedir(
-            self, v, access and clone( access ), filter and clone( filter )
+            own, v, access and clone( access ), filter and clone( filter )
         );
         if err then
             return err;
@@ -182,18 +193,19 @@ end
 
 
 function Router:readdir()
-    return parsedir( self, '/' );
+    return parsedir( protected( self ), '/' );
 end
 
 
 function Router:lookup( uri )
-    return self.route:exec( uri );
+    return protected( self ).route:exec( uri );
 end
 
 
 function Router:dump()
-    self.route:dump();
+    protected( self ).route:dump();
 end
+
 
 return Router.exports;
 
