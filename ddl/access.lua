@@ -33,7 +33,8 @@ local isSugaredFn = require('router.ddl.helper').isSugaredFn;
 
 -- constants
 local METHOD_NAMES = {
-    authorize   = 'authorize'
+    authenticate    = 'authenticate',
+    authorize       = 'authorize'
 };
 
 -- class
