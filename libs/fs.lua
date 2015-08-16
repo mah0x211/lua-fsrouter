@@ -191,7 +191,7 @@ end
 function FS:stat( rpath )
     local own = protected( self );
     local pathname = normalize( own.docroot, rpath );
-    local info, err = stat( pathname );
+    local info, err = stat( pathname, own.followSymlinks );
     
     if err then
         return nil, ('failed to stat: %s - %s'):format( rpath, err );

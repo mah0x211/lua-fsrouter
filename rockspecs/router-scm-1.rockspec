@@ -15,7 +15,7 @@ dependencies = {
     "halo >= 1.1.0",
     "lrexlib-pcre >= 2.7.2",
     "magic >= 1.0.0",
-    "path >= 1.0.3",
+    "path >= 1.0.4",
     "process >= 1.4.0",
     "util >= 1.3.3",
     "usher"
