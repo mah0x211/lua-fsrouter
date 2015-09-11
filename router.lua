@@ -20,180 +20,138 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
+  router.lua
+  lua-router
+  Created by Masatoshi Teruya on 13/03/15.
+
 --]]
 
 -- modules
-local usher = require('usher');
-local util = require('util');
-local clone = util.table.clone;
-local typeof = util.typeof;
-local FS = require('router.fs');
-local AccessDDL = require('router.ddl.access');
-local FilterDDL = require('router.ddl.filter');
-local ContentDDL = require('router.ddl.content');
-local MIME = require('router.mime');
+local Usher = require('usher');
+local RootDir = require('rootdir');
+local tblconcat = table.concat;
 -- constants
-local DEFAULT = {
-    docroot = 'html',
-    followSymlink = false,
-    index = 'index.htm',
-    sandbox = _G
+local EREADDIR = 'failed to readdir %s: %s';
+local ESETROUTE = 'failed to set route %s: %s';
+local ECOMPILE = 'failed to compile %s: %s';
+local ELINK = 'failed to link %s: %s';
+-- default values
+local function DO_NOTHING()end
+local DEFAULT_TRANSPILER = {
+    setup = DO_NOTHING,
+    cleanup = DO_NOTHING,
+    push = DO_NOTHING,
+    pop = DO_NOTHING,
+    compile = DO_NOTHING,
+    link = DO_NOTHING
 };
--- class
-local Router = require('halo').class.Router;
 
-function Router:init( cfg )
-    local own = protected( self );
+-- private function
+local function traversedir( own, route, errtbl, dir )
+    local transpiler = own.transpiler;
+    local entries, err = own.rootdir:readdir( dir );
     
-    if cfg == nil then
-        cfg = DEFAULT;
-    else
-        assert( typeof.table( cfg ), 'cfg must be type of table' );
-        -- create index table
-        if cfg.index then
-            assert(
-                typeof.string( cfg.index ),
-                'cfg.index must be type of string'
-            );
-            assert(
-                not cfg.index:find( '/', 1, true ),
-                'cfg.index should not include path-delimiter'
-            );
-        else
-            cfg.index = DEFAULT.index;
+    -- got error
+    if err then
+        errtbl[#errtbl + 1] = EREADDIR:format( dir, err );
+    elseif entries.reg then
+        local files = {};
+        local ignore;
+        
+        -- check regular files
+        for _, stat in ipairs( entries.reg ) do
+            -- compile script file
+            ignore, err = transpiler:compile( stat )
+            -- got error
+            if err then
+                errtbl[#errtbl + 1] = ECOMPILE:format( stat.rpath, err );
+            -- regular file
+            elseif not ignore then
+                files[#files + 1] = stat;
+            end
+        end
+        
+        -- link
+        for i = 1, #files do
+            err = transpiler:link( files[i] );
+            if err then
+                errtbl[#errtbl + 1] = ELINK:format( files[i].rpath, err );
+            -- set stat to router
+            else
+                err = route:set( files[i].rpath, files[i] );
+                if err then
+                    errtbl[#errtbl + 1] = ESETROUTE:format( files[i].rpath, err );
+                end
+            end
         end
     end
     
-    -- copy values into protected table
-    for k, v in pairs( cfg ) do
-        own[k] = v;
+    -- traverse directories
+    if entries.dir then
+        for _, stat in ipairs( entries.dir ) do
+            transpiler:push( stat.rpath );
+            traversedir( own, route, errtbl, stat.rpath );
+            transpiler:pop();
+        end
     end
     
-    -- create index table
-    own.index = {
-        [cfg.index] = true,
-        ['@'..cfg.index] = true
-    };
+    return #errtbl;
+end
+
+-- class
+local Router = require('halo').class.Router;
+
+
+function Router:init( cfg )
+    local own = protected( self );
+    local err;
     
-    -- create mimemap
-    own.mime = MIME.new();
+    -- check transpiler
+    if cfg.transpiler then
+        local transpiler = cfg.transpiler;
+        
+        for k, t in pairs({
+            setup = 'function',
+            cleanup = 'function',
+            push = 'function',
+            pop = 'function',
+            compile = 'function',
+            link = 'function',
+        }) do
+            if type( transpiler[k] ) ~= t then
+                error( 'cfg.transpiler.' .. k .. ' must be function' );
+            end
+        end
+        own.transpiler = transpiler;
+    else
+        own.transpiler = DEFAULT_TRANSPILER;
+    end
     
-    -- create fs
-    own.fs = FS.new(
-        cfg.docroot, cfg.followSymlinks, cfg.ignore, own.mime:extMap()
-    );
-    
-    -- create ddl
-    own.ddl = {
-        access = AccessDDL.new( cfg.sandbox ),
-        filter = FilterDDL.new( cfg.sandbox ),
-        content = ContentDDL.new( cfg.sandbox )
-    };
-    
-    -- create usher
-    own.route = assert( usher.new('/@/') );
+    own.rootdir = RootDir.new( cfg );
+    -- traverse rootdir
+    err = self:readdir();
+    if err then
+        error( err );
+    end
     
     return self;
 end
 
 
-function Router:mimeTypes()
-    return clone( protected(self).mime:typeMap() );
-end
-
-
-function Router:readMIMETypes( mimeTypes )
-    if not typeof.string( mimeTypes ) then
-        return false, 'mimeTypes must be string';
-    end
-    
-    protected(self).mime:readTypes( mimeTypes );
-    
-    return true;
-end
-
-
-local function parsedir( own, dir, access, filter )
-    local entries, err = own.fs:readdir( dir );
-    local wildcards = entries.wildcards;
-    local scripts;
-
-    if err then
-        return err;
-    end
-
-    -- compile $access.lua
-    if entries.access then
-        access, err = own.ddl.access( entries.access.pathname, false, access );
-        if err then
-            return err;
-        end
-    end
-    
-    -- compile $filter.lua
-    if entries.filter then
-        filter, err = own.ddl.filter( entries.filter.pathname, false, filter );
-        if err then
-            return err;
-        end
-    end
-    
-    -- compile wildcard handler: $*.[ext.]lua
-    for _, stat in pairs( wildcards ) do
-        stat.handler, err = own.ddl.content( stat.pathname, false, filter );
-        if err then
-            return err;
-        end
-    end
-    
-    -- check entry
-    scripts = entries.scripts;
-    for entry, stat in pairs( entries.files ) do
-        -- add access handler
-        stat.access = access;
-        
-        -- make file handler
-        if scripts[entry] then
-            -- assign handler table
-            stat.handler, err = own.ddl.content(
-                scripts[entry].pathname, false, filter
-            );
-            if err then
-                return err;
-            end
-        -- assign wildcard handler
-        elseif wildcards[stat.ext] then
-            stat.handler = clone( wildcards[stat.ext].handler );
-        end
-        
-        -- set state to router
-        err = own.route:set( stat.rpath, stat );
-        if err then
-            return ('failed to set route %s: %s'):format( stat.rpath, err );
-        -- add dirname(with trailing-slash) if entry is index file
-        elseif own.index[entry] then
-            entry = stat.rpath:sub( 1, #stat.rpath - #entry );
-            err = own.route:set( entry, stat );
-            if err then
-                return ('failed to set index route %s: %s'):format( entry, err );
-            end
-        end
-    end
-    
-    -- recursive call
-    for _, v in pairs( entries.dirs ) do
-        err = parsedir(
-            own, v, access and clone( access ), filter and clone( filter )
-        );
-        if err then
-            return err;
-        end
-    end
-end
-
-
 function Router:readdir()
-    return parsedir( protected( self ), '/' );
+    local own = protected( self );
+    local route = assert( Usher.new( '/@/' ) );
+    local errtbl = {};
+    
+    -- traverse rootdir and run transpiler
+    own.transpiler:setup();
+    if traversedir( protected( self ), route, errtbl, '/' ) > 0 then
+        return tblconcat( errtbl, '\n' );
+    end
+    own.transpiler:cleanup();
+    
+    -- replace current route
+    own.route = route;
 end
 
 
@@ -202,10 +160,4 @@ function Router:lookup( uri )
 end
 
 
-function Router:dump()
-    protected( self ).route:dump();
-end
-
-
 return Router.exports;
-
