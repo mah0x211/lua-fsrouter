@@ -20,8 +20,8 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-  router.lua
-  lua-router
+  fsrouter.lua
+  lua-fsrouter
   Created by Masatoshi Teruya on 13/03/15.
 
 --]]
@@ -99,10 +99,10 @@ local function traversedir( own, route, errtbl, dir )
 end
 
 -- class
-local Router = require('halo').class.Router;
+local FSRouter = require('halo').class.FSRouter;
 
 
-function Router:init( cfg )
+function FSRouter:init( cfg )
     local own = protected( self );
     local err;
     
@@ -138,7 +138,7 @@ function Router:init( cfg )
 end
 
 
-function Router:readdir()
+function FSRouter:readdir()
     local own = protected( self );
     local route = assert( Usher.new( '/@/' ) );
     local errtbl = {};
@@ -155,9 +155,9 @@ function Router:readdir()
 end
 
 
-function Router:lookup( uri )
+function FSRouter:lookup( uri )
     return protected( self ).route:exec( uri );
 end
 
 
-return Router.exports;
+return FSRouter.exports;
