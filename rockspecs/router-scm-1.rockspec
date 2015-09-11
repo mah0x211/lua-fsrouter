@@ -11,26 +11,13 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "ddl >= 1.0.1",
-    "halo >= 1.1.0",
-    "lrexlib-pcre >= 2.7.2",
-    "magic >= 1.0.0",
-    "path >= 1.0.4",
-    "process >= 1.4.0",
-    "util >= 1.3.3",
+    "halo >= 1.1.7",
+    "rootdir >= 1.0.2",
     "usher"
 }
 build = {
     type = "builtin",
     modules = {
-        router = "router.lua",
-        ["router.mime"] = "libs/mime.lua",
-        ["router.mime.default"] = "libs/mime_default.lua",
-        ["router.constants"] = "libs/constants.lua",
-        ["router.fs"] = "libs/fs.lua",
-        ["router.ddl.helper"] = "ddl/helper.lua",
-        ["router.ddl.access"] = "ddl/access.lua",
-        ["router.ddl.filter"] = "ddl/filter.lua",
-        ["router.ddl.content"] = "ddl/content.lua"
+        router = "router.lua"
     }
 }
