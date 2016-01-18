@@ -56,7 +56,7 @@ local function traversedir( own, route, errtbl, dir )
         errtbl[#errtbl + 1] = EREADDIR:format( dir, err );
     elseif entries.reg then
         local files = {};
-        local ignore;
+        local ignore, rpath;
         
         -- check regular files
         for _, stat in ipairs( entries.reg ) do
@@ -78,7 +78,9 @@ local function traversedir( own, route, errtbl, dir )
                 errtbl[#errtbl + 1] = ELINK:format( files[i].rpath, err );
             -- set stat to router
             else
-                err = route:set( files[i].rpath, files[i] );
+                -- eliminate a file extension from routing params
+                rpath = files[i].rpath:gsub( '(@[^/]+)%.[%w%.]+$', '%1' );
+                err = route:set( rpath, files[i] );
                 if err then
                     errtbl[#errtbl + 1] = ESETROUTE:format( files[i].rpath, err );
                 end
