@@ -54,6 +54,7 @@ local function traversedir( own, route, errtbl, dir )
     -- got error
     if err then
         errtbl[#errtbl + 1] = EREADDIR:format( dir, err );
+        return #errtbl;
     elseif entries.reg then
         local files = {};
         local ignore, rpath;
