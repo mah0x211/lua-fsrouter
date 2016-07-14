@@ -11,7 +11,6 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "halo >= 1.1.7",
     "rootdir >= 1.0.2",
     "vardir >= 0.1.0"
 }

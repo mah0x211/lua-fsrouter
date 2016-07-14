@@ -30,6 +30,7 @@
 local vardir = require('vardir');
 local RootDir = require('rootdir');
 local tblconcat = table.concat;
+local setmetatable = debug.setmetatable;
 -- constants
 local EREADDIR = 'failed to readdir %s: %s';
 local ESETROUTE = 'failed to set route %s: %s';
@@ -47,9 +48,9 @@ local DEFAULT_TRANSPILER = {
 };
 
 -- private function
-local function traversedir( own, route, errtbl, dir )
-    local transpiler = own.transpiler;
-    local entries, err = own.rootdir:readdir( dir );
+local function traversedir( self, route, errtbl, dir )
+    local transpiler = self.transpiler;
+    local entries, err = self.rootdir:readdir( dir );
 
     -- got error
     if err then
@@ -93,7 +94,7 @@ local function traversedir( own, route, errtbl, dir )
     if entries.dir then
         for _, stat in ipairs( entries.dir ) do
             transpiler:push( stat.rpath );
-            traversedir( own, route, errtbl, stat.rpath );
+            traversedir( self, route, errtbl, stat.rpath );
             transpiler:pop();
         end
     end
@@ -102,11 +103,32 @@ local function traversedir( own, route, errtbl, dir )
 end
 
 -- class
-local FSRouter = require('halo').class.FSRouter;
+local FSRouter = {};
 
 
-function FSRouter:init( cfg )
-    local own = protected( self );
+function FSRouter:readdir()
+    local route = vardir.new( '@' );
+    local errtbl = {};
+
+    -- traverse rootdir and run transpiler
+    self.transpiler:setup();
+    if traversedir( self, route, errtbl, '/' ) > 0 then
+        return tblconcat( errtbl, '\n' );
+    end
+    self.transpiler:cleanup();
+
+    -- replace current route
+    self.route = route;
+end
+
+
+function FSRouter:lookup( uri )
+    return self.route:resolve( uri );
+end
+
+
+local function new( cfg )
+    local self = {};
     local err;
 
     -- check transpiler
@@ -125,12 +147,16 @@ function FSRouter:init( cfg )
                 error( 'cfg.transpiler.' .. k .. ' must be function' );
             end
         end
-        own.transpiler = transpiler;
+        self.transpiler = transpiler;
     else
-        own.transpiler = DEFAULT_TRANSPILER;
+        self.transpiler = DEFAULT_TRANSPILER;
     end
 
-    own.rootdir = RootDir.new( cfg );
+    self.rootdir = RootDir.new( cfg );
+    setmetatable( self, {
+        __index = FSRouter
+    });
+
     -- traverse rootdir
     err = self:readdir();
     if err then
@@ -141,26 +167,6 @@ function FSRouter:init( cfg )
 end
 
 
-function FSRouter:readdir()
-    local own = protected( self );
-    local route = vardir.new( '@' );
-    local errtbl = {};
-
-    -- traverse rootdir and run transpiler
-    own.transpiler:setup();
-    if traversedir( protected( self ), route, errtbl, '/' ) > 0 then
-        return tblconcat( errtbl, '\n' );
-    end
-    own.transpiler:cleanup();
-
-    -- replace current route
-    own.route = route;
-end
-
-
-function FSRouter:lookup( uri )
-    return protected( self ).route:resolve( uri );
-end
-
-
-return FSRouter.exports;
+return {
+    new = new
+};
