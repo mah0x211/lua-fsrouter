@@ -46,6 +46,15 @@ local DEFAULT_TRANSPILER = {
     compile = DO_NOTHING,
     link = DO_NOTHING
 };
+local TRANSPILER_IMP = {
+    setup = 'function',
+    cleanup = 'function',
+    push = 'function',
+    pop = 'function',
+    compile = 'function',
+    link = 'function',
+};
+
 
 -- private function
 local function traversedir( self, route, errtbl, dir )
@@ -102,6 +111,7 @@ local function traversedir( self, route, errtbl, dir )
     return #errtbl;
 end
 
+
 -- class
 local FSRouter = {};
 
@@ -135,14 +145,11 @@ local function new( cfg )
     if cfg.transpiler then
         local transpiler = cfg.transpiler;
 
-        for k, t in pairs({
-            setup = 'function',
-            cleanup = 'function',
-            push = 'function',
-            pop = 'function',
-            compile = 'function',
-            link = 'function',
-        }) do
+        if type( transpiler ) ~= 'table' then
+            error( 'cfg.transpiler must be table' );
+        end
+
+        for k, t in pairs( TRANSPILER_IMP ) do
             if type( transpiler[k] ) ~= t then
                 error( 'cfg.transpiler.' .. k .. ' must be function' );
             end
