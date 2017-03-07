@@ -11,7 +11,7 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "rootdir >= 1.0.2",
+    "rootdir >= 1.0.5",
     "vardir >= 0.1.0"
 }
 build = {
