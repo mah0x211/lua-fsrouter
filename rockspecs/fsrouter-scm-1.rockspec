@@ -1,22 +1,26 @@
-package = "fsrouter"
-version = "scm-1"
+package = 'fsrouter'
+version = 'scm-1'
 source = {
-    url = "git://github.com/mah0x211/lua-fsrouter.git"
+    url = 'git+https://github.com/mah0x211/lua-fsrouter.git',
 }
 description = {
-    summary = "filesystem based url router",
-    homepage = "https://github.com/mah0x211/lua-fsrouter",
-    license = "MIT/X11",
-    maintainer = "Masatoshi Teruya"
+    summary = 'filesystem based url router',
+    homepage = 'https://github.com/mah0x211/lua-fsrouter',
+    license = 'MIT/X11',
+    maintainer = 'Masatoshi Fukunaga'
 }
 dependencies = {
-    "lua >= 5.1",
-    "rootdir >= 1.0.5",
-    "vardir >= 0.1.0"
+    'lua >= 5.1',
+    'basedir >= 0.1.0',
+    'isa >= 0.2.1',
+    'loadchunk >= 0.1.2',
+    'plut >= 0.3.0',
 }
 build = {
-    type = "builtin",
+    type = 'builtin',
     modules = {
-        fsrouter = "fsrouter.lua"
+        fsrouter = 'fsrouter.lua',
+        ['fsrouter.categorizer'] = 'lib/categorizer.lua',
+        ['fsrouter.default'] = 'lib/default.lua',
     }
 }
