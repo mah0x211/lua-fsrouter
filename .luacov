@@ -1,0 +1,8 @@
+codefromstrings = false
+runreport = true
+deletestats = false
+modules = {
+    fsrouter = 'fsrouter.lua',
+    ['fsrouter.categorizer'] = 'lib/categorizer.lua',
+    ['fsrouter.default'] = 'lib/default.lua',
+}
