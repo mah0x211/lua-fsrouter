@@ -41,7 +41,7 @@ local METHODS = require('fsrouter.default').METHODS
 
 -- extract name without extension
 local function basename(filename)
-    return match(filename, '([^/.]+)%.[^/]*$')
+    return match(filename, '([^/.]+)%.-[^/]*$')
 end
 
 --- @class Categorizer
