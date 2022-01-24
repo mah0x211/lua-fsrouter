@@ -67,7 +67,7 @@ local function fenv()
         rawequal = rawequal,
         -- rawget = rawget,
         -- rawset = rawset,
-        -- require = require,
+        require = require,
         select = select,
         -- setfenv = setfenv,
         -- setmetatable = setmetatable,
