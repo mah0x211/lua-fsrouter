@@ -41,9 +41,9 @@ local function shallow_copy(tbl)
     end
 end
 
---- fenv
+--- loadfenv
 --- @return table<string, string|function|table>
-local function fenv()
+local function loadfenv()
     -- unsafe functions are commented out
     return {
         _VERSION = _VERSION,
@@ -286,7 +286,7 @@ local function compiler(pathname)
     local methods = {}
 
     -- set the handler method registrar
-    local env = fenv()
+    local env = loadfenv()
     env.handler = setmetatable({}, {
         __newindex = function(_, name, fn)
             if not METHODS[name] then
@@ -315,7 +315,7 @@ local function compiler(pathname)
 end
 
 return {
-    fenv = fenv,
+    loadfenv = loadfenv,
     compiler = compiler,
     METHODS = METHODS,
 }
