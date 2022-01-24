@@ -34,6 +34,7 @@ create a new router based on the specified directory.
              'all' / 'any' / 'get' / 'head' / 'post' / 'put' / 'delete' / 
              'connect' / 'trace' / 'patch'.
         ```
+    - `loadfenv:function`: function that returns the environment of a handler function. (default: `fsrouter.default.fenv`)
     - other options are passed to [lua-basedir.new function](https://github.com/mah0x211/lua-basedir#bd--basedirnew-pathname--opts-).
 
 **Returns**

@@ -20,6 +20,7 @@
 -- THE SOFTWARE.
 --
 -- modules
+local error = error
 local ipairs = ipairs
 local pairs = pairs
 local next = next
@@ -46,6 +47,7 @@ end
 
 --- @class Categorizer
 --- @field compiler function
+--- @field loadfenv function
 --- @field upfilters table[]
 --- @field files table<string, table>
 --- @field filters table[]
@@ -60,7 +62,7 @@ Categorizer.__index = Categorizer
 --- @return table methods
 --- @return string err
 function Categorizer:compile(pathname)
-    local methods, err = self.compiler(pathname)
+    local methods, err = self.compiler(pathname, self.loadfenv())
     if err then
         return nil, format('failed to compile %q: %s', pathname, err)
     end
@@ -415,11 +417,19 @@ end
 
 --- new
 --- @param compiler function
+--- @param loadfenv function
 --- @param upfilters table[]
 --- @return Categorizer
-local function new(compiler, upfilters)
+local function new(compiler, loadfenv, upfilters)
+    if not is_function(compiler) then
+        error('compiler must be function', 2)
+    elseif not is_function(loadfenv) then
+        error('loadfenv must be function', 2)
+    end
+
     return setmetatable({
         compiler = compiler,
+        loadfenv = loadfenv,
         files = {},
         handlers = {},
         filters = {},
