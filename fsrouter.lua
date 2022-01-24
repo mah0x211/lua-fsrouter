@@ -24,11 +24,14 @@
 -- Created by Masatoshi Teruya on 13/03/15.
 --
 -- modules
+local error = error
 local format = string.format
 local gsub = string.gsub
 local setmetatable = setmetatable
 local categorizer = require('fsrouter.categorizer')
 local default_compiler = require('fsrouter.default').compiler
+local default_loadfenv = require('fsrouter.default').loadfenv
+local is_function = require('isa').Function
 --- @class BaseDir
 --- @field new function
 --- @field readdir function
@@ -44,10 +47,11 @@ local plut = require('plut')
 ---@param rootdir BaseDir
 ---@param dirname string
 ---@param compiler function
+---@param loadfenv function
 ---@param filters table[]
 ---@return table[] routes
 ---@return string err
-local function traverse(routes, rootdir, dirname, compiler, filters)
+local function traverse(routes, rootdir, dirname, compiler, loadfenv, filters)
     local entries, err = rootdir:readdir(dirname)
 
     -- failed to readdir
@@ -61,7 +65,7 @@ local function traverse(routes, rootdir, dirname, compiler, filters)
     })
 
     -- read file entries
-    local c = categorizer.new(compiler, filters)
+    local c = categorizer.new(compiler, loadfenv, filters)
     local ok
     for _, stat in ipairs(entries.reg or {}) do
         ok, err = c:categorize(stat)
@@ -88,7 +92,8 @@ local function traverse(routes, rootdir, dirname, compiler, filters)
 
     -- traverse directories
     for _, stat in ipairs(entries.dir or {}) do
-        _, err = traverse(routes, rootdir, stat.rpath, compiler, c.filters)
+        _, err = traverse(routes, rootdir, stat.rpath, compiler, loadfenv,
+                          c.filters)
         if err then
             return nil, err
         end
@@ -118,9 +123,17 @@ end
 --- @return string err
 --- @return table[] routes
 local function new(pathname, opts)
+    opts = opts or {}
+    if opts.compiler ~= nil and not is_function(opts.compiler) then
+        error('opts.compiler must be function', 2)
+    elseif opts.loadfenv ~= nil and not is_function(opts.loadfenv) then
+        error('opts.loadfenv must be function', 2)
+    end
+
     local rootdir = basedir.new(pathname, opts)
     local routes, err = traverse({}, rootdir, '/',
-                                 opts and opts.compiler or default_compiler)
+                                 opts.compiler or default_compiler,
+                                 opts.loadfenv or default_loadfenv)
     if err then
         return nil, err
     end

@@ -26,6 +26,7 @@ local setmetatable = setmetatable
 local tostring = tostring
 local isa = require('isa')
 local is_function = isa.Function
+local is_table = isa.table
 local loadfile = require('loadchunk').file
 
 --- shallow_copy
@@ -41,9 +42,9 @@ local function shallow_copy(tbl)
     end
 end
 
---- fenv
+--- loadfenv
 --- @return table<string, string|function|table>
-local function fenv()
+local function loadfenv()
     -- unsafe functions are commented out
     return {
         _VERSION = _VERSION,
@@ -280,14 +281,17 @@ local METHODS = {
 
 --- evalfile
 --- @param pathname string
+--- @param fenv table
 --- @return nil|table<string, function> methods
 --- @return string err
-local function compiler(pathname)
-    local methods = {}
+local function compiler(pathname, fenv)
+    if not is_table(fenv) then
+        error('fenv must be table', 2)
+    end
 
     -- set the handler method registrar
-    local env = fenv()
-    env.handler = setmetatable({}, {
+    local methods = {}
+    fenv.handler = setmetatable({}, {
         __newindex = function(_, name, fn)
             if not METHODS[name] then
                 error(format('method %q is not supported', tostring(name)), 2)
@@ -300,13 +304,13 @@ local function compiler(pathname)
         end,
     })
 
-    local fn, err = loadfile(pathname, env)
+    local fn, err = loadfile(pathname, fenv)
     if err then
         return nil, err
     end
 
     local ok, perr = pcall(fn)
-    env.handler = nil
+    fenv.handler = nil
     if not ok then
         return nil, perr
     end
@@ -315,7 +319,7 @@ local function compiler(pathname)
 end
 
 return {
-    fenv = fenv,
+    loadfenv = loadfenv,
     compiler = compiler,
     METHODS = METHODS,
 }
