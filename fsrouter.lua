@@ -31,7 +31,10 @@ local setmetatable = setmetatable
 local categorizer = require('fsrouter.categorizer')
 local default_compiler = require('fsrouter.default').compiler
 local default_loadfenv = require('fsrouter.default').loadfenv
-local is_function = require('isa').Function
+local isa = require('isa')
+local is_string = isa.string
+local is_table = isa.table
+local is_function = isa.Function
 --- @class BaseDir
 --- @field new function
 --- @field readdir function
@@ -43,15 +46,17 @@ local basedir = require('basedir')
 local plut = require('plut')
 
 --- traverse
----@param routes table[]
----@param rootdir BaseDir
----@param dirname string
----@param compiler function
----@param loadfenv function
----@param filters table[]
----@return table[] routes
----@return string err
-local function traverse(routes, rootdir, dirname, compiler, loadfenv, filters)
+--- @param trim_extentions table<string, boolean>
+--- @param routes table[]
+--- @param rootdir BaseDir
+--- @param dirname string
+--- @param compiler function
+--- @param loadfenv function
+--- @param filters table[]
+--- @return table[] routes
+--- @return string err
+local function traverse(trim_extentions, routes, rootdir, dirname, compiler,
+                        loadfenv, filters)
     local entries, err = rootdir:readdir(dirname)
 
     -- failed to readdir
@@ -65,7 +70,7 @@ local function traverse(routes, rootdir, dirname, compiler, loadfenv, filters)
     })
 
     -- read file entries
-    local c = categorizer.new(compiler, loadfenv, filters)
+    local c = categorizer.new(trim_extentions, compiler, loadfenv, filters)
     local ok
     for _, stat in ipairs(entries.reg or {}) do
         ok, err = c:categorize(stat)
@@ -92,8 +97,8 @@ local function traverse(routes, rootdir, dirname, compiler, loadfenv, filters)
 
     -- traverse directories
     for _, stat in ipairs(entries.dir or {}) do
-        _, err = traverse(routes, rootdir, stat.rpath, compiler, loadfenv,
-                          c.filters)
+        _, err = traverse(trim_extentions, routes, rootdir, stat.rpath,
+                          compiler, loadfenv, c.filters)
         if err then
             return nil, err
         end
@@ -128,10 +133,26 @@ local function new(pathname, opts)
         error('opts.compiler must be function', 2)
     elseif opts.loadfenv ~= nil and not is_function(opts.loadfenv) then
         error('opts.loadfenv must be function', 2)
+    elseif opts.trim_extentions == nil then
+        opts.trim_extentions = {
+            '.html',
+            '.htm',
+        }
+    elseif not is_table(opts.trim_extentions) then
+        error('opts.trim_extentions must be table', 2)
+    end
+
+    -- convert list to key/value format
+    local trim_extentions = {}
+    for i, v in ipairs(opts.trim_extentions) do
+        if not is_string(v) then
+            error(format('opts.trim_extentions#%d must be table', i), 2)
+        end
+        trim_extentions[v] = true
     end
 
     local rootdir = basedir.new(pathname, opts)
-    local routes, err = traverse({}, rootdir, '/',
+    local routes, err = traverse(trim_extentions, {}, rootdir, '/',
                                  opts.compiler or default_compiler,
                                  opts.loadfenv or default_loadfenv)
     if err then
