@@ -35,6 +35,7 @@ create a new router based on the specified directory.
              'connect' / 'trace' / 'patch'.
         ```
     - `loadfenv:function`: function that returns the environment table of a handler function. (default: `fsrouter.default.loadfenv`)
+    - `trim_extentions:string[]`: list of extensions to be removed from the route path. (default `{ '.html', '.htm }` )
     - other options are passed to [lua-basedir.new function](https://github.com/mah0x211/lua-basedir#bd--basedirnew-pathname--opts-).
 
 **Returns**

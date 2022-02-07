@@ -157,6 +157,50 @@ function testcase.new()
             },
         },
         {
+            pathname = '/favicon.ico',
+            glob = {},
+            file = {
+                rpath = '/favicon.ico',
+                mime = 'image/x-icon',
+            },
+            methods = {
+                get = {
+                    {
+                        name = '/#1.block_ip.lua',
+                        type = 'filter',
+                        method = 'all',
+                    },
+                    {
+                        name = '/#2.check_user.lua',
+                        type = 'filter',
+                        method = 'all',
+                    },
+                },
+            },
+        },
+        {
+            pathname = '/img/example.jpg',
+            glob = {},
+            file = {
+                rpath = '/img/example.jpg',
+                mime = 'image/jpeg',
+            },
+            methods = {
+                get = {
+                    {
+                        name = '/#1.block_ip.lua',
+                        type = 'filter',
+                        method = 'all',
+                    },
+                    {
+                        name = '/#2.check_user.lua',
+                        type = 'filter',
+                        method = 'all',
+                    },
+                },
+            },
+        },
+        {
             pathname = '/uname',
             glob = {
                 user = 'uname',
@@ -319,12 +363,12 @@ function testcase.new()
         assert(not lerr, err)
         assert.equal(glob, v.glob)
         if v.file and not contains(val.file, v.file) then
-            print(v.pathname, dump(val.file))
-            error(string.format('%s, %s', dump(val.file), dump(v.file)))
+            error(string.format('%s is not contains %s', dump(val.file),
+                                dump(v.file)))
         end
         if not contains(val.methods, v.methods) then
-            print(v.pathname, dump(val.methods))
-            error(string.format('%s, %s', dump(val.methods), dump(v.methods)))
+            error(string.format('%s is not contains %s', dump(val.methods),
+                                dump(v.methods)))
         end
     end
 end

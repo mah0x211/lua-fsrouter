@@ -46,6 +46,7 @@ local function basename(filename)
 end
 
 --- @class Categorizer
+--- @field trim_extentions table<string, boolean>
 --- @field compiler function
 --- @field loadfenv function
 --- @field upfilters table[]
@@ -208,8 +209,12 @@ end
 --- @return boolean ok
 --- @return string err
 function Categorizer:as_file(stat)
-    -- get basename without extension
-    local entry = basename(stat.entry)
+    local entry = stat.entry
+
+    -- remove extension from a resource file
+    if self.trim_extentions[stat.ext] then
+        entry = basename(entry)
+    end
 
     -- '$' prefixed name must be used as parameter segment
     entry = gsub(entry, '^%$', {
@@ -248,7 +253,7 @@ local function sort_by_order(a, b)
     return a.order < b.order
 end
 
---- sort_by_order
+--- sort_by_name
 --- @param a table
 --- @param b table
 --- @return boolean lt
@@ -416,18 +421,22 @@ function Categorizer:finalize()
 end
 
 --- new
+--- @param trim_extentions table<string, boolean>
 --- @param compiler function
 --- @param loadfenv function
 --- @param upfilters table[]
 --- @return Categorizer
-local function new(compiler, loadfenv, upfilters)
-    if not is_function(compiler) then
+local function new(trim_extentions, compiler, loadfenv, upfilters)
+    if not is_table(trim_extentions) then
+        error('trim_extentions must be table', 2)
+    elseif not is_function(compiler) then
         error('compiler must be function', 2)
     elseif not is_function(loadfenv) then
         error('loadfenv must be function', 2)
     end
 
     return setmetatable({
+        trim_extentions = trim_extentions,
         compiler = compiler,
         loadfenv = loadfenv,
         files = {},
