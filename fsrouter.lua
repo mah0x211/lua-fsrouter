@@ -46,7 +46,7 @@ local basedir = require('basedir')
 local plut = require('plut')
 
 --- traverse
---- @param trim_extentions table<string, boolean>
+--- @param trim_extensions table<string, boolean>
 --- @param routes table[]
 --- @param rootdir BaseDir
 --- @param dirname string
@@ -55,7 +55,7 @@ local plut = require('plut')
 --- @param filters table[]
 --- @return table[] routes
 --- @return string err
-local function traverse(trim_extentions, routes, rootdir, dirname, compiler,
+local function traverse(trim_extensions, routes, rootdir, dirname, compiler,
                         loadfenv, filters)
     local entries, err = rootdir:readdir(dirname)
 
@@ -70,7 +70,7 @@ local function traverse(trim_extentions, routes, rootdir, dirname, compiler,
     })
 
     -- read file entries
-    local c = categorizer.new(trim_extentions, compiler, loadfenv, filters)
+    local c = categorizer.new(trim_extensions, compiler, loadfenv, filters)
     local ok
     for _, stat in ipairs(entries.reg or {}) do
         ok, err = c:categorize(stat)
@@ -97,7 +97,7 @@ local function traverse(trim_extentions, routes, rootdir, dirname, compiler,
 
     -- traverse directories
     for _, stat in ipairs(entries.dir or {}) do
-        _, err = traverse(trim_extentions, routes, rootdir, stat.rpath,
+        _, err = traverse(trim_extensions, routes, rootdir, stat.rpath,
                           compiler, loadfenv, c.filters)
         if err then
             return nil, err
@@ -133,13 +133,13 @@ local function new(pathname, opts)
         error('opts.compiler must be function', 2)
     elseif opts.loadfenv ~= nil and not is_function(opts.loadfenv) then
         error('opts.loadfenv must be function', 2)
-    elseif opts.trim_extentions == nil then
-        opts.trim_extentions = {
+    elseif opts.trim_extensions == nil then
+        opts.trim_extensions = {
             '.html',
             '.htm',
         }
-    elseif not is_table(opts.trim_extentions) then
-        error('opts.trim_extentions must be table', 2)
+    elseif not is_table(opts.trim_extensions) then
+        error('opts.trim_extensions must be table', 2)
     end
 
     -- convert list to key/value format
@@ -152,7 +152,7 @@ local function new(pathname, opts)
     end
 
     local rootdir = basedir.new(pathname, opts)
-    local routes, err = traverse(trim_extentions, {}, rootdir, '/',
+    local routes, err = traverse(trim_extensions, {}, rootdir, '/',
                                  opts.compiler or default_compiler,
                                  opts.loadfenv or default_loadfenv)
     if err then
