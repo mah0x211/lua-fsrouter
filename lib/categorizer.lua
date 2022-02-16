@@ -46,7 +46,7 @@ local function basename(filename)
 end
 
 --- @class Categorizer
---- @field trim_extentions table<string, boolean>
+--- @field trim_extensions table<string, boolean>
 --- @field compiler function
 --- @field loadfenv function
 --- @field upfilters table[]
@@ -212,7 +212,7 @@ function Categorizer:as_file(stat)
     local entry = stat.entry
 
     -- remove extension from a resource file
-    if self.trim_extentions[stat.ext] then
+    if self.trim_extensions[stat.ext] then
         entry = basename(entry)
     end
 
@@ -421,14 +421,14 @@ function Categorizer:finalize()
 end
 
 --- new
---- @param trim_extentions table<string, boolean>
+--- @param trim_extensions table<string, boolean>
 --- @param compiler function
 --- @param loadfenv function
 --- @param upfilters table[]
 --- @return Categorizer
-local function new(trim_extentions, compiler, loadfenv, upfilters)
-    if not is_table(trim_extentions) then
-        error('trim_extentions must be table', 2)
+local function new(trim_extensions, compiler, loadfenv, upfilters)
+    if not is_table(trim_extensions) then
+        error('trim_extensions must be table', 2)
     elseif not is_function(compiler) then
         error('compiler must be function', 2)
     elseif not is_function(loadfenv) then
@@ -436,7 +436,7 @@ local function new(trim_extentions, compiler, loadfenv, upfilters)
     end
 
     return setmetatable({
-        trim_extentions = trim_extentions,
+        trim_extensions = trim_extensions,
         compiler = compiler,
         loadfenv = loadfenv,
         files = {},

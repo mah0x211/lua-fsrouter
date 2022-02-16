@@ -2,7 +2,7 @@ lua-fsrouter
 ===
 
 [![test](https://github.com/mah0x211/lua-fsrouter/actions/workflows/test.yml/badge.svg)](https://github.com/mah0x211/lua-fsrouter/actions/workflows/test.yml)
-[![Coverage Status](https://coveralls.io/repos/github/mah0x211/lua-fsrouter/badge.svg?branch=master)](https://coveralls.io/github/mah0x211/lua-fsrouter?branch=master)
+[![codecov](https://codecov.io/gh/mah0x211/lua-fsrouter/branch/master/graph/badge.svg)](https://codecov.io/gh/mah0x211/lua-fsrouter)
 
 `lua-fsrouter` is a filesystem-based url router based on [lua-plut](https://github.com/mah0x211/lua-plut).
 
@@ -23,6 +23,11 @@ create a new router based on the specified directory.
 
 - `pathname:string`: path of the base directory.
 - `opts:table`
+    - `follow_symlink:boolean`: follow symbolic links. (default `false`)
+    - `trim_extensions:string[]`: list of extensions to be removed from the route path. (default `{ '.html', '.htm }` )
+    - `mimetypes:string`: mime types definition string. (default: `mediatype.default`)
+    - `ignore:table`: regular expressions for ignore filename. (default: `{ '^[.].*$' }`)
+    - `loadfenv:function`: function that returns the environment table of a handler function. (default: `fsrouter.default.loadfenv`)
     - `compiler:function`: function to compile a handler file.  
         ```
         -- Specification of the compiler function
@@ -34,9 +39,6 @@ create a new router based on the specified directory.
              'all' / 'any' / 'get' / 'head' / 'post' / 'put' / 'delete' / 
              'connect' / 'trace' / 'patch'.
         ```
-    - `loadfenv:function`: function that returns the environment table of a handler function. (default: `fsrouter.default.loadfenv`)
-    - `trim_extentions:string[]`: list of extensions to be removed from the route path. (default `{ '.html', '.htm }` )
-    - other options are passed to [lua-basedir.new function](https://github.com/mah0x211/lua-basedir#bd--basedirnew-pathname--opts-).
 
 **Returns**
 
