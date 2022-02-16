@@ -24,8 +24,7 @@ end
 
 function testcase.new()
     -- create router
-    local r, err = fsrouter.new('./valid')
-    assert(not err, err)
+    local r = assert(fsrouter.new('./valid'))
     for _, v in ipairs({
         {
             pathname = '/',
@@ -359,8 +358,8 @@ function testcase.new()
             },
         },
     }) do
-        local val, lerr, glob = r:lookup(v.pathname)
-        assert(not lerr, err)
+        local val, err, glob = r:lookup(v.pathname)
+        assert(not err, err)
         assert.equal(glob, v.glob)
         if v.file and not contains(val.file, v.file) then
             error(string.format('%s is not contains %s', dump(val.file),

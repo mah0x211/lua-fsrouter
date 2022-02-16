@@ -12,8 +12,11 @@ description = {
 dependencies = {
     'lua >= 5.1',
     'basedir >= 0.1.0',
+    'extname >= 0.1.0',
     'isa >= 0.2.1',
+    'libmagic >= 5.41',
     'loadchunk >= 0.1.2',
+    'mediatypes >= 2.0.1',
     'plut >= 0.3.0',
 }
 build = {

@@ -24,61 +24,97 @@
 -- Created by Masatoshi Teruya on 13/03/15.
 --
 -- modules
+local concat = table.concat
 local error = error
 local format = string.format
 local gsub = string.gsub
 local setmetatable = setmetatable
-local categorizer = require('fsrouter.categorizer')
+local new_categorizer = require('fsrouter.categorizer').new
 local default_compiler = require('fsrouter.default').compiler
 local default_loadfenv = require('fsrouter.default').loadfenv
+local new_mediatypes = require('mediatypes').new
+local new_plut = require('plut').new
+local new_regex = require('regex').new
+local basedir = require('basedir')
+local extname = require('extname')
 local isa = require('isa')
+local is_boolean = isa.boolean
 local is_string = isa.string
 local is_table = isa.table
 local is_function = isa.Function
---- @class BaseDir
---- @field new function
---- @field readdir function
-local basedir = require('basedir')
---- @class Plut
---- @field new function
---- @field set function
---- @field lookup function
-local plut = require('plut')
+
+-- init for libmagic
+local Magic
+do
+    local libmagic = require('libmagic')
+    Magic = libmagic.open(libmagic.MIME_ENCODING, libmagic.NO_CHECK_COMPRESS,
+                          libmagic.SYMLINK)
+    Magic:load()
+end
+
+--- get_charset
+---@param pathname string
+---@return string charset
+local function get_charset(pathname)
+    return Magic:file(pathname)
+end
 
 --- traverse
---- @param trim_extensions table<string, boolean>
+--- @param ctx table<string, boolean>
 --- @param routes table[]
---- @param rootdir BaseDir
 --- @param dirname string
---- @param compiler function
---- @param loadfenv function
 --- @param filters table[]
 --- @return table[] routes
 --- @return string err
-local function traverse(trim_extensions, routes, rootdir, dirname, compiler,
-                        loadfenv, filters)
-    local entries, err = rootdir:readdir(dirname)
+local function traverse(ctx, routes, dirname, filters)
+    local dir, oerr = ctx.rootdir:opendir(dirname)
 
     -- failed to readdir
-    if err then
-        return nil, format('failed to readdir %s: %s', dirname, err)
+    if oerr then
+        return nil, format('failed to traverse %s: %s', dirname, oerr)
+    elseif not dir then
+        return routes
+    end
+
+    local dentries = {}
+    local c = new_categorizer(ctx.trim_extensions, ctx.compiler, ctx.loadfenv,
+                              filters)
+    -- read file entries
+    local entry, rerr = dir:readdir()
+    while entry do
+        if not ctx.re_ignore:test(entry) then
+            local stat, serr = ctx.rootdir:stat(dirname .. '/' .. entry)
+
+            if serr then
+                return nil, format('failed to traverse %s: %s', dirname, serr)
+            elseif stat then
+                local ext = extname(stat.rpath)
+
+                stat.entry = entry
+                stat.ext = ext
+                stat.mime = ext and ctx.mime:getmime(gsub(ext, '^.', ''))
+                stat.charset = get_charset(stat.pathname)
+                if stat.type == 'directory' then
+                    dentries[#dentries + 1] = stat
+                else
+                    local ok, cerr = c:categorize(stat)
+                    if not ok then
+                        return nil, cerr
+                    end
+                end
+            end
+        end
+
+        entry, rerr = dir:readdir()
+    end
+    if rerr then
+        return nil, format('failed to traverse %s: %s', dirname, rerr)
     end
 
     -- use segments starting with '$' as parameter segments
     dirname = gsub(dirname, '/%$', {
         ['/$'] = '/:',
     })
-
-    -- read file entries
-    local c = categorizer.new(trim_extensions, compiler, loadfenv, filters)
-    local ok
-    for _, stat in ipairs(entries.reg or {}) do
-        ok, err = c:categorize(stat)
-        if not ok then
-            return nil, err
-        end
-    end
-
     -- add the pathname/value pairs to the routes
     for _, route in ipairs(c:finalize()) do
         local rpath = dirname
@@ -96,9 +132,8 @@ local function traverse(trim_extensions, routes, rootdir, dirname, compiler,
     end
 
     -- traverse directories
-    for _, stat in ipairs(entries.dir or {}) do
-        _, err = traverse(trim_extensions, routes, rootdir, stat.rpath,
-                          compiler, loadfenv, c.filters)
+    for _, stat in ipairs(dentries) do
+        local _, err = traverse(ctx, routes, stat.rpath, c.filters)
         if err then
             return nil, err
         end
@@ -129,38 +164,76 @@ end
 --- @return table[] routes
 local function new(pathname, opts)
     opts = opts or {}
-    if opts.compiler ~= nil and not is_function(opts.compiler) then
-        error('opts.compiler must be function', 2)
+    if not is_string(pathname) then
+        error('pathname must be string', 2)
+    elseif not is_table(opts) then
+        error('opts must be table', 2)
+    elseif opts.follow_symlink ~= nil and not is_boolean(opts.follow_symlink) then
+        error('opts.follow_symlink must be boolean', 2)
+    elseif opts.trim_extensions ~= nil and not is_table(opts.trim_extensions) then
+        error('opts.trim_extensions must be table', 2)
+    elseif opts.mimetypes ~= nil and not is_string(opts.mimetypes) then
+        error('opts.mimetypes must be string')
+    elseif opts.ignore ~= nil and not is_table(opts.ignore) then
+        error('opts.ignore must be table', 2)
     elseif opts.loadfenv ~= nil and not is_function(opts.loadfenv) then
         error('opts.loadfenv must be function', 2)
-    elseif opts.trim_extensions == nil then
-        opts.trim_extensions = {
-            '.html',
-            '.htm',
-        }
-    elseif not is_table(opts.trim_extensions) then
-        error('opts.trim_extensions must be table', 2)
+    elseif opts.compiler ~= nil and not is_function(opts.compiler) then
+        error('opts.compiler must be function', 2)
     end
 
+    local ctx = {
+        rootdir = basedir.new(pathname, opts.follow_symlink == true),
+        mime = new_mediatypes(opts.mimetypes),
+        trim_extensions = {},
+        compiler = opts.compiler or default_compiler,
+        loadfenv = opts.loadfenv or default_loadfenv,
+    }
     -- convert list to key/value format
-    local trim_extentions = {}
-    for i, v in ipairs(opts.trim_extentions) do
+    for i, v in ipairs(opts.trim_extensions or {
+        '.html',
+        '.htm',
+    }) do
         if not is_string(v) then
-            error(format('opts.trim_extentions#%d must be table', i), 2)
+            error(format('opts.trim_extensions#%d must be table', i), 2)
         end
-        trim_extentions[v] = true
+        ctx.trim_extensions[v] = true
     end
 
-    local rootdir = basedir.new(pathname, opts)
-    local routes, err = traverse(trim_extensions, {}, rootdir, '/',
-                                 opts.compiler or default_compiler,
-                                 opts.loadfenv or default_loadfenv)
+    -- set ignoreRegex list
+    local ignore = {
+        -- default ignore pattern
+        '^[.].*$',
+    }
+    for i, pattern in ipairs(opts.ignore or {}) do
+        if not is_string(pattern) then
+            error(format('opts.ignore#%d must be string', i), 2)
+        end
+        -- evalulate
+        local _, err = new_regex(pattern, 'i')
+        if err then
+            error(format('opts.ignore#%d cannot be compiled: %s', i, err), 2)
+        end
+
+        ignore[#ignore + 1] = pattern
+    end
+    -- compile patterns
+    local pattern = '(?:' .. concat(ignore, '|') .. ')'
+    local err
+    ctx.re_ignore, err = new_regex(pattern, 'i')
+    if err then
+        error(format('opts.ignore: %q: %s', pattern, err), 2)
+    end
+
+    -- traverse the directories under the base directory
+    local routes
+    routes, err = traverse(ctx, {}, '/')
     if err then
         return nil, err
     end
 
     -- register the url to the router
-    local router = plut.new()
+    local router = new_plut()
     for _, v in ipairs(routes) do
         local ok, serr = router:set(v.rpath, v.route)
         if not ok then

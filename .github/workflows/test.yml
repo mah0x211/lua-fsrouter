@@ -60,10 +60,7 @@ jobs:
       run: |
         testcase --coverage ./test/
     -
-      name: Coveralls
-      continue-on-error: true
-      env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        luarocks install luacov-coveralls
-        luacov-coveralls
+      name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        flags: unittests
