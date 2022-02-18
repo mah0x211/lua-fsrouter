@@ -102,7 +102,7 @@ local function traverse(ctx, routes, dirname, filters)
                     dentries[#dentries + 1] = stat
                 else
                     local ext = extname(stat.rpath)
-                    stat.entry = entry
+                    stat.name = entry
                     stat.ext = ext
                     stat.mime = ext and ctx.mime:getmime(gsub(ext, '^.', ''))
                     stat.charset = get_charset(stat.pathname)

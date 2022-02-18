@@ -76,7 +76,7 @@ end
 --- @return string err
 function Categorizer:as_handler(stat)
     -- extract basename wihtout extension and remove '@' prefix
-    local entry = sub(basename(stat.entry), 2)
+    local entry = sub(basename(stat.name), 2)
 
     -- '$' prefixed name must be used as parameter segment
     entry = gsub(entry, '^%$', {
@@ -137,7 +137,7 @@ end
 --- @return boolean ok
 --- @return string err
 function Categorizer:as_filter(stat)
-    local entry = stat.entry
+    local entry = stat.name
     local order = match(entry, '^#(%d+)%.')
 
     if not order then
@@ -209,7 +209,7 @@ end
 --- @return boolean ok
 --- @return string err
 function Categorizer:as_file(stat)
-    local entry = stat.entry
+    local entry = stat.name
 
     -- remove extension from a resource file
     if self.trim_extensions[stat.ext] then
@@ -232,7 +232,7 @@ end
 --- @return boolean ok
 --- @return string err
 function Categorizer:categorize(stat)
-    local prefix = sub(stat.entry, 1, 1)
+    local prefix = sub(stat.name, 1, 1)
     local is_handler = prefix == '@'
     local is_filter = prefix == '#'
 
