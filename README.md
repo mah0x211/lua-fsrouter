@@ -26,7 +26,8 @@ create a new router based on the specified directory.
     - `follow_symlink:boolean`: follow symbolic links. (default `false`)
     - `trim_extensions:string[]`: list of extensions to be removed from the route path. (default `{ '.html', '.htm }` )
     - `mimetypes:string`: mime types definition string. (default: `mediatype.default`)
-    - `ignore:table`: regular expressions for ignore filename. (default: `{ '^[.].*$' }`)
+    - `ignore:table`: regular expression for filenames to ignore. (default: `fsrouter.default.ignore`)
+    - `no_ignore:table`: regular expressions for filenames not to ignore. (default: `fsrouter.default.no_ignore`)
     - `loadfenv:function`: function that returns the environment table of a handler function. (default: `fsrouter.default.loadfenv`)
     - `compiler:function`: function to compile a handler file.  
         ```
