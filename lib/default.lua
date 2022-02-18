@@ -318,7 +318,29 @@ local function compiler(pathname, fenv)
     return methods
 end
 
+--- default_no_ignore
+--- @return string[]
+local function default_no_ignore()
+    return {
+        -- default allow patterns
+        '^\\.well-known',
+        '\\.(?:gif|png|jpe?g|webp)$',
+        '\\.(?:lua|js|css|txt|htm?l)$',
+    }
+end
+
+--- default_ignore
+--- @return string[]
+local function default_ignore()
+    return {
+        -- default ignore patterns
+        '^\\.+',
+    }
+end
+
 return {
+    ignore = default_ignore,
+    no_ignore = default_no_ignore,
     loadfenv = loadfenv,
     compiler = compiler,
     METHODS = METHODS,

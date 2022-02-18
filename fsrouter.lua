@@ -30,6 +30,8 @@ local format = string.format
 local gsub = string.gsub
 local setmetatable = setmetatable
 local new_categorizer = require('fsrouter.categorizer').new
+local default_ignore = require('fsrouter.default').ignore
+local default_no_ignore = require('fsrouter.default').no_ignore
 local default_compiler = require('fsrouter.default').compiler
 local default_loadfenv = require('fsrouter.default').loadfenv
 local new_mediatypes = require('mediatypes').new
@@ -42,6 +44,11 @@ local is_boolean = isa.boolean
 local is_string = isa.string
 local is_table = isa.table
 local is_function = isa.Function
+-- constants
+local DOT_ENTRY = {
+    ['.'] = true,
+    ['..'] = true,
+}
 
 -- init for libmagic
 local Magic
@@ -77,26 +84,28 @@ local function traverse(ctx, routes, dirname, filters)
     end
 
     local dentries = {}
+    local re_no_ignore = ctx.re_no_ignore
+    local re_ignore = ctx.re_ignore
     local c = new_categorizer(ctx.trim_extensions, ctx.compiler, ctx.loadfenv,
                               filters)
     -- read file entries
     local entry, rerr = dir:readdir()
     while entry do
-        if not ctx.re_ignore:test(entry) then
+        if not DOT_ENTRY[entry] and re_no_ignore:test(entry) or
+            not re_ignore:test(entry) then
             local stat, serr = ctx.rootdir:stat(dirname .. '/' .. entry)
 
             if serr then
                 return nil, format('failed to traverse %s: %s', dirname, serr)
             elseif stat then
-                local ext = extname(stat.rpath)
-
-                stat.entry = entry
-                stat.ext = ext
-                stat.mime = ext and ctx.mime:getmime(gsub(ext, '^.', ''))
-                stat.charset = get_charset(stat.pathname)
                 if stat.type == 'directory' then
                     dentries[#dentries + 1] = stat
                 else
+                    local ext = extname(stat.rpath)
+                    stat.name = entry
+                    stat.ext = ext
+                    stat.mime = ext and ctx.mime:getmime(gsub(ext, '^.', ''))
+                    stat.charset = get_charset(stat.pathname)
                     local ok, cerr = c:categorize(stat)
                     if not ok then
                         return nil, cerr
@@ -124,11 +133,7 @@ local function traverse(ctx, routes, dirname, filters)
             rpath = rpath .. '/' .. route.name
         end
         route.rpath = rpath
-
-        routes[#routes + 1] = {
-            rpath = rpath,
-            route = route,
-        }
+        routes[#routes + 1] = route
     end
 
     -- traverse directories
@@ -156,6 +161,53 @@ function FSRouter:lookup(pathname)
     return self.routes:lookup(pathname)
 end
 
+--- regex_verify_pattern
+---@param s string
+---@return boolean
+---@return string
+local function regex_verify_pattern(s)
+    if not is_string(s) then
+        return false, 'not string'
+    end
+    -- evalulate
+    local _, err = new_regex(s, 'i')
+    if err then
+        return false, format('cannot be compiled: %s', err)
+    end
+
+    return true
+end
+
+--- regex_compile_patterns
+---@param patterns string[]
+---@return regex re
+---@return string err
+---@return string pat
+---@return integer idx
+local function regex_compile_patterns(patterns)
+    if not patterns or #patterns == 0 then
+        return new_regex('*')
+    end
+
+    local list = {}
+    for i, p in ipairs(patterns) do
+        local ok, err = regex_verify_pattern(p)
+        if not ok then
+            return nil, err, p, i
+        end
+        list[#list + 1] = p
+    end
+
+    -- compile patterns
+    local pat = '(?:' .. concat(list, '|') .. ')'
+    local re, err = new_regex(pat, 'i')
+    if err then
+        return nil, err, pat
+    end
+
+    return re
+end
+
 --- new
 --- @param pathname string
 --- @param opts table
@@ -176,6 +228,8 @@ local function new(pathname, opts)
         error('opts.mimetypes must be string')
     elseif opts.ignore ~= nil and not is_table(opts.ignore) then
         error('opts.ignore must be table', 2)
+    elseif opts.no_ignore ~= nil and not is_table(opts.no_ignore) then
+        error('opts.no_ignore must be table', 2)
     elseif opts.loadfenv ~= nil and not is_function(opts.loadfenv) then
         error('opts.loadfenv must be function', 2)
     elseif opts.compiler ~= nil and not is_function(opts.compiler) then
@@ -200,44 +254,33 @@ local function new(pathname, opts)
         ctx.trim_extensions[v] = true
     end
 
-    -- set ignoreRegex list
-    local ignore = {
-        -- default ignore pattern
-        '^[.].*$',
-    }
-    for i, pattern in ipairs(opts.ignore or {}) do
-        if not is_string(pattern) then
-            error(format('opts.ignore#%d must be string', i), 2)
-        end
-        -- evalulate
-        local _, err = new_regex(pattern, 'i')
+    -- create re_ignore
+    for k, patterns in pairs({
+        no_ignore = opts.no_ignore or default_no_ignore(),
+        ignore = opts.ignore or default_ignore(),
+    }) do
+        local re, err, pat, idx = regex_compile_patterns(patterns)
         if err then
-            error(format('opts.ignore#%d cannot be compiled: %s', i, err), 2)
+            if idx then
+                error(format('opts.%s#%d %s', k, idx, err), 2)
+            end
+            error(format('opts.%s: %q: %s', k, pat, err), 2)
         end
-
-        ignore[#ignore + 1] = pattern
-    end
-    -- compile patterns
-    local pattern = '(?:' .. concat(ignore, '|') .. ')'
-    local err
-    ctx.re_ignore, err = new_regex(pattern, 'i')
-    if err then
-        error(format('opts.ignore: %q: %s', pattern, err), 2)
+        ctx['re_' .. k] = re
     end
 
     -- traverse the directories under the base directory
-    local routes
-    routes, err = traverse(ctx, {}, '/')
+    local routes, err = traverse(ctx, {}, '/')
     if err then
         return nil, err
     end
 
     -- register the url to the router
     local router = new_plut()
-    for _, v in ipairs(routes) do
-        local ok, serr = router:set(v.rpath, v.route)
+    for _, route in ipairs(routes) do
+        local ok, serr = router:set(route.rpath, route)
         if not ok then
-            return nil, format('failed to set route %q: %s', v.rpath, serr)
+            return nil, format('failed to set route %q: %s', route.rpath, serr)
         end
     end
 
