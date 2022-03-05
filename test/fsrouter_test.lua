@@ -458,3 +458,20 @@ function testcase.route_index_already_exists()
     assert.match(err, 'route "index" already exists')
 end
 
+function testcase.lookup_error()
+    local r = assert(fsrouter.new('./valid'))
+
+    -- test that lookup does not returns err
+    for _, pathname in ipairs({
+        './foo',
+        '/*/foo',
+        '/#/foo',
+        '/^/foo',
+    }) do
+        local v, err, glob = r:lookup(pathname)
+        assert.is_nil(v)
+        assert.is_nil(err)
+        assert.is_nil(glob)
+    end
+end
+
