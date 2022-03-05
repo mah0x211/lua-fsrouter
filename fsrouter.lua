@@ -35,7 +35,8 @@ local default_no_ignore = require('fsrouter.default').no_ignore
 local default_compiler = require('fsrouter.default').compiler
 local default_loadfenv = require('fsrouter.default').loadfenv
 local new_mediatypes = require('mediatypes').new
-local new_plut = require('plut').new
+local plut = require('plut')
+local new_plut = plut.new
 local new_regex = require('regex').new
 local basedir = require('basedir')
 local extname = require('extname')
@@ -152,13 +153,28 @@ end
 local FSRouter = {}
 FSRouter.__index = FSRouter
 
+local IGNORE_PLUT_ERROR = {
+    [plut.EPATHNAME] = true,
+    [plut.ERESERVED] = true,
+}
+
 --- lookup
 --- @param pathname string
 --- @return table route
 --- @return error err
 --- @return table glob
 function FSRouter:lookup(pathname)
-    return self.routes:lookup(pathname)
+    local route, err, glob = self.routes:lookup(pathname)
+
+    if err then
+        local perr = plut.is_error(err)
+        if perr and IGNORE_PLUT_ERROR[perr.code] then
+            return nil
+        end
+        return nil, err
+    end
+
+    return route, nil, glob
 end
 
 --- regex_verify_pattern
