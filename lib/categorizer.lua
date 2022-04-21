@@ -40,11 +40,6 @@ local is_function = isa.Function
 -- constants
 local METHODS = require('fsrouter.default').METHODS
 
--- extract name without extension
-local function basename(filename)
-    return match(filename, '([^/.]+)%.-[^/]*$')
-end
-
 --- @class Categorizer
 --- @field trim_extensions table<string, boolean>
 --- @field compiler function
@@ -76,7 +71,7 @@ end
 --- @return string err
 function Categorizer:as_handler(stat)
     -- extract basename wihtout extension and remove '@' prefix
-    local entry = sub(basename(stat.name), 2)
+    local entry = sub(stat.name, 2, #stat.name - #stat.ext)
 
     -- '$' prefixed name must be used as parameter segment
     entry = gsub(entry, '^%$', {
@@ -213,7 +208,7 @@ function Categorizer:as_file(stat)
 
     -- remove extension from a resource file
     if self.trim_extensions[stat.ext] then
-        entry = basename(entry)
+        entry = sub(entry, 1, #entry - #stat.ext)
     end
 
     -- '$' prefixed name must be used as parameter segment
