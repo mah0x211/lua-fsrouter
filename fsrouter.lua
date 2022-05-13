@@ -167,8 +167,7 @@ function FSRouter:lookup(pathname)
     local route, err, glob = self.routes:lookup(pathname)
 
     if err then
-        local perr = plut.is_error(err)
-        if perr and IGNORE_PLUT_ERROR[perr.code] then
+        if IGNORE_PLUT_ERROR[err.type] then
             return nil
         end
         return nil, err
