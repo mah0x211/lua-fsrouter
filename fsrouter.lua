@@ -200,10 +200,6 @@ end
 ---@return string pat
 ---@return integer idx
 local function regex_compile_patterns(patterns)
-    if not patterns or #patterns == 0 then
-        return new_regex('*')
-    end
-
     local list = {}
     for i, p in ipairs(patterns) do
         local ok, err = regex_verify_pattern(p)
@@ -270,9 +266,16 @@ local function new(pathname, opts)
     end
 
     -- create re_ignore
+    if not opts.no_ignore or #opts.no_ignore == 0 then
+        opts.no_ignore = default_no_ignore()
+    end
+    if not opts.ignore or #opts.ignore == 0 then
+        opts.ignore = default_ignore()
+    end
+
     for k, patterns in pairs({
-        no_ignore = opts.no_ignore or default_no_ignore(),
-        ignore = opts.ignore or default_ignore(),
+        no_ignore = opts.no_ignore,
+        ignore = opts.ignore,
     }) do
         local re, err, pat, idx = regex_compile_patterns(patterns)
         if err then
