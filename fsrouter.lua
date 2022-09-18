@@ -96,8 +96,8 @@ local function traverse(ctx, routes, dirname, filters, is_static)
     local entry
     entry, err = dir:readdir()
     while entry do
-        if not DOT_ENTRY[entry] and re_no_ignore:test(entry) or
-            not re_ignore:test(entry) then
+        if not DOT_ENTRY[entry] and
+            (re_no_ignore:test(entry) or not re_ignore:test(entry)) then
             local stat
 
             stat, err = ctx.rootdir:stat(dirname .. '/' .. entry)
