@@ -24,7 +24,12 @@ end
 
 function testcase.new()
     -- create router
-    local r = assert(fsrouter.new('./valid'))
+    local r = assert(fsrouter.new('./valid', {
+        static = {
+            '/static',
+            '/another_static',
+        },
+    }))
     for _, v in ipairs({
         {
             pathname = '/',
@@ -184,6 +189,42 @@ function testcase.new()
                 rpath = '/img/example.jpg',
                 mime = 'image/jpeg',
             },
+            methods = {
+                get = {
+                    {
+                        name = '/#1.block_ip.lua',
+                        type = 'filter',
+                        method = 'all',
+                    },
+                    {
+                        name = '/#2.check_user.lua',
+                        type = 'filter',
+                        method = 'all',
+                    },
+                },
+            },
+        },
+        {
+            pathname = '/static/@static.lua',
+            glob = {},
+            methods = {
+                get = {
+                    {
+                        name = '/#1.block_ip.lua',
+                        type = 'filter',
+                        method = 'all',
+                    },
+                    {
+                        name = '/#2.check_user.lua',
+                        type = 'filter',
+                        method = 'all',
+                    },
+                },
+            },
+        },
+        {
+            pathname = '/static/child/@child.lua',
+            glob = {},
             methods = {
                 get = {
                     {
@@ -370,6 +411,105 @@ function testcase.new()
                                 dump(v.methods)))
         end
     end
+
+    -- test that throws an error if pathname is invalid
+    local err = assert.throws(fsrouter.new, true)
+    assert.match(err, 'pathname must be string')
+
+    -- test that throws an error if opts is invalid
+    err = assert.throws(fsrouter.new, './valid', true)
+    assert.match(err, 'opts must be table')
+
+    -- test that throws an error if opts.follow_symlink is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        follow_symlink = 'invalid',
+    })
+    assert.match(err, 'opts.follow_symlink must be boolean')
+
+    -- test that throws an error if opts.trim_extensions is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        trim_extensions = 'invalid',
+    })
+    assert.match(err, 'opts.trim_extensions must be string[]')
+
+    -- test that throws an error if opts.trim_extensions is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        trim_extensions = {
+            {
+                'invalid',
+            },
+        },
+    })
+    assert.match(err, 'opts.trim_extensions#1 not string')
+
+    -- test that throws an error if opts.mimetypes is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        mimetypes = {
+            'invalid',
+        },
+    })
+    assert.match(err, 'opts.mimetypes must be string')
+
+    -- test that throws an error if opts.static is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        static = 'invalid',
+    })
+    assert.match(err, 'opts.static must be string[]')
+
+    -- test that throws an error if opts.static is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        static = {
+            {
+                'invalid',
+            },
+        },
+    })
+    assert.match(err, 'opts.static#1 not string')
+
+    -- test that throws an error if opts.ignore is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        ignore = 'invalid',
+    })
+    assert.match(err, 'opts.ignore must be string[]')
+
+    -- test that throws an error if opts.ignore is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        ignore = {
+            {
+                'invalid',
+            },
+        },
+    })
+    assert.match(err, 'opts.ignore#1 not string')
+
+    -- test that throws an error if opts.no_ignore is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        no_ignore = 'invalid',
+    })
+    assert.match(err, 'opts.no_ignore must be string[]')
+
+    -- test that throws an error if opts.no_ignore is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        no_ignore = {
+            {
+                'invalid',
+            },
+        },
+    })
+    assert.match(err, 'opts.no_ignore#1 not string')
+
+    -- test that throws an error if opts.no_ignore is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        loadfenv = 'invalid',
+    })
+    assert.match(err, 'opts.loadfenv must be function')
+
+    -- test that throws an error if opts.compiler is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        compiler = 'invalid',
+    })
+    assert.match(err, 'opts.compiler must be function')
+
 end
 
 function testcase.filter_invalid()
@@ -459,7 +599,12 @@ function testcase.route_index_already_exists()
 end
 
 function testcase.lookup_error()
-    local r = assert(fsrouter.new('./valid'))
+    local r = assert(fsrouter.new('./valid', {
+        static = {
+            '/static',
+            '/another_static',
+        },
+    }))
 
     -- test that lookup does not returns err
     for _, pathname in ipairs({

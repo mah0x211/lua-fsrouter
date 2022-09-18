@@ -202,7 +202,6 @@ end
 --- as_file
 --- @param stat table
 --- @return boolean ok
---- @return string err
 function Categorizer:as_file(stat)
     local entry = stat.name
 
@@ -225,7 +224,7 @@ end
 --- categorize
 --- @param stat table
 --- @return boolean ok
---- @return string err
+--- @return string? err
 function Categorizer:categorize(stat)
     local prefix = sub(stat.name, 1, 1)
     local is_handler = prefix == '@'

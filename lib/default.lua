@@ -283,7 +283,7 @@ local METHODS = {
 --- @param pathname string
 --- @param fenv table
 --- @return nil|table<string, function> methods
---- @return string err
+--- @return string? err
 local function compiler(pathname, fenv)
     if not is_table(fenv) then
         error('fenv must be table', 2)
