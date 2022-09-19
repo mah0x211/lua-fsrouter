@@ -27,6 +27,7 @@
 local concat = table.concat
 local error = error
 local format = string.format
+local sub = string.sub
 local gsub = string.gsub
 local setmetatable = setmetatable
 local new_categorizer = require('fsrouter.categorizer').new
@@ -114,10 +115,12 @@ local function traverse(ctx, routes, dirname, filters, is_static)
                     stat.charset = get_charset(stat.pathname)
 
                     local ok
-                    if is_static then
-                        ok, err = c:as_file(stat)
-                    else
+                    if not is_static then
                         ok, err = c:categorize(stat)
+                    elseif sub(entry, 1, 1) == '#' then
+                        ok, err = c:as_filter(stat)
+                    else
+                        ok, err = c:as_file(stat)
                     end
 
                     if not ok then

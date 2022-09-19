@@ -214,11 +214,6 @@ function testcase.new()
                         type = 'filter',
                         method = 'all',
                     },
-                    {
-                        name = '/#2.check_user.lua',
-                        type = 'filter',
-                        method = 'all',
-                    },
                 },
             },
         },
