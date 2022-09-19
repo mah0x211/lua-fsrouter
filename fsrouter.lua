@@ -71,33 +71,38 @@ end
 --- @param ctx table<string, boolean>
 --- @param routes table[]
 --- @param dirname string
---- @param filters table[]
---- @return table[] routes
---- @return string err
-local function traverse(ctx, routes, dirname, filters)
-    local dir, oerr = ctx.rootdir:opendir(dirname)
+--- @param filters table[]?
+--- @param is_static boolean
+--- @return table[]? routes
+--- @return string? err
+local function traverse(ctx, routes, dirname, filters, is_static)
+    local dir, err = ctx.rootdir:opendir(dirname)
 
     -- failed to readdir
-    if oerr then
-        return nil, format('failed to traverse %s: %s', dirname, oerr)
+    if err then
+        return nil, format('failed to traverse %s: %s', dirname, err)
     elseif not dir then
         return routes
     end
+    is_static = is_static or ctx.static[dirname]
 
     local dentries = {}
     local re_no_ignore = ctx.re_no_ignore
     local re_ignore = ctx.re_ignore
     local c = new_categorizer(ctx.trim_extensions, ctx.compiler, ctx.loadfenv,
                               filters)
-    -- read file entries
-    local entry, rerr = dir:readdir()
-    while entry do
-        if not DOT_ENTRY[entry] and re_no_ignore:test(entry) or
-            not re_ignore:test(entry) then
-            local stat, serr = ctx.rootdir:stat(dirname .. '/' .. entry)
 
-            if serr then
-                return nil, format('failed to traverse %s: %s', dirname, serr)
+    -- read file entries
+    local entry
+    entry, err = dir:readdir()
+    while entry do
+        if not DOT_ENTRY[entry] and
+            (re_no_ignore:test(entry) or not re_ignore:test(entry)) then
+            local stat
+
+            stat, err = ctx.rootdir:stat(dirname .. '/' .. entry)
+            if err then
+                return nil, format('failed to traverse %s: %s', dirname, err)
             elseif stat then
                 if stat.type == 'directory' then
                     dentries[#dentries + 1] = stat
@@ -107,18 +112,25 @@ local function traverse(ctx, routes, dirname, filters)
                     stat.ext = ext
                     stat.mime = ext and ctx.mime:getmime(gsub(ext, '^.', ''))
                     stat.charset = get_charset(stat.pathname)
-                    local ok, cerr = c:categorize(stat)
+
+                    local ok
+                    if is_static then
+                        ok, err = c:as_file(stat)
+                    else
+                        ok, err = c:categorize(stat)
+                    end
+
                     if not ok then
-                        return nil, cerr
+                        return nil, err
                     end
                 end
             end
         end
 
-        entry, rerr = dir:readdir()
+        entry, err = dir:readdir()
     end
-    if rerr then
-        return nil, format('failed to traverse %s: %s', dirname, rerr)
+    if err then
+        return nil, format('failed to traverse %s: %s', dirname, err)
     end
 
     -- use segments starting with '$' as parameter segments
@@ -139,7 +151,7 @@ local function traverse(ctx, routes, dirname, filters)
 
     -- traverse directories
     for _, stat in ipairs(dentries) do
-        local _, err = traverse(ctx, routes, stat.rpath, c.filters)
+        _, err = traverse(ctx, routes, stat.rpath, c.filters, is_static)
         if err then
             return nil, err
         end
@@ -221,10 +233,10 @@ end
 
 --- new
 --- @param pathname string
---- @param opts table
---- @return FSRouter router
---- @return string err
---- @return table[] routes
+--- @param opts table?
+--- @return FSRouter? router
+--- @return any err
+--- @return table[]? routes
 local function new(pathname, opts)
     opts = opts or {}
     if not is_string(pathname) then
@@ -234,13 +246,15 @@ local function new(pathname, opts)
     elseif opts.follow_symlink ~= nil and not is_boolean(opts.follow_symlink) then
         error('opts.follow_symlink must be boolean', 2)
     elseif opts.trim_extensions ~= nil and not is_table(opts.trim_extensions) then
-        error('opts.trim_extensions must be table', 2)
+        error('opts.trim_extensions must be string[]', 2)
     elseif opts.mimetypes ~= nil and not is_string(opts.mimetypes) then
         error('opts.mimetypes must be string')
+    elseif opts.static ~= nil and not is_table(opts.static) then
+        error('opts.static must be string[]')
     elseif opts.ignore ~= nil and not is_table(opts.ignore) then
-        error('opts.ignore must be table', 2)
+        error('opts.ignore must be string[]', 2)
     elseif opts.no_ignore ~= nil and not is_table(opts.no_ignore) then
-        error('opts.no_ignore must be table', 2)
+        error('opts.no_ignore must be string[]', 2)
     elseif opts.loadfenv ~= nil and not is_function(opts.loadfenv) then
         error('opts.loadfenv must be function', 2)
     elseif opts.compiler ~= nil and not is_function(opts.compiler) then
@@ -253,6 +267,7 @@ local function new(pathname, opts)
         trim_extensions = {},
         compiler = opts.compiler or default_compiler,
         loadfenv = opts.loadfenv or default_loadfenv,
+        static = {},
     }
     -- convert list to key/value format
     for i, v in ipairs(opts.trim_extensions or {
@@ -260,9 +275,19 @@ local function new(pathname, opts)
         '.htm',
     }) do
         if not is_string(v) then
-            error(format('opts.trim_extensions#%d must be table', i), 2)
+            error(format('opts.trim_extensions#%d not string', i), 2)
         end
         ctx.trim_extensions[v] = true
+    end
+
+    -- create static route table
+    if opts.static then
+        for i, v in ipairs(opts.static) do
+            if not is_string(v) then
+                error(format('opts.static#%d not string', i), 2)
+            end
+            ctx.static[v] = true
+        end
     end
 
     -- create re_ignore
