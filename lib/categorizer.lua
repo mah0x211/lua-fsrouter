@@ -34,9 +34,6 @@ local gsub = string.gsub
 local match = string.match
 local sub = string.sub
 local sort = table.sort
-local isa = require('isa')
-local is_table = isa.table
-local is_function = isa.Function
 -- constants
 local METHODS = require('fsrouter.default').METHODS
 
@@ -88,7 +85,7 @@ function Categorizer:as_handler(stat)
     local methods, err = self:compile(stat.pathname)
     if err then
         return false, format('invalid handler file %q: %s', stat.rpath, err)
-    elseif not is_table(methods) then
+    elseif type(methods) ~= 'table' then
         return false,
                format(
                    'invalid handler file %q: method list (%q) is not a table',
@@ -106,7 +103,7 @@ function Categorizer:as_handler(stat)
                    format(
                        'invalid handler file %q: method name (%q) must be string',
                        stat.rpath, tostring(method))
-        elseif not is_function(fn) then
+        elseif type(fn) ~= 'function' then
             return false,
                    format(
                        'invalid handler file %q: method (%q) must be function',
@@ -162,7 +159,7 @@ function Categorizer:as_filter(stat)
     local methods, err = self:compile(stat.pathname)
     if err then
         return false, format('invalid filter file %q: %s', stat.rpath, err)
-    elseif not is_table(methods) then
+    elseif type(methods) ~= 'table' then
         return false,
                format('invalid filter file %q: method list (%q) is not a table',
                       stat.rpath, type(methods))
@@ -176,7 +173,7 @@ function Categorizer:as_filter(stat)
                    format(
                        'invalid filter file %q: method name (%q) must be string',
                        stat.rpath, tostring(method))
-        elseif not is_function(fn) then
+        elseif type(fn) ~= 'function' then
             return false,
                    format(
                        'invalid filter file %q: method (%q) must be function',
@@ -421,11 +418,11 @@ end
 --- @param upfilters table[]
 --- @return Categorizer
 local function new(trim_extensions, compiler, loadfenv, upfilters)
-    if not is_table(trim_extensions) then
+    if type(trim_extensions) ~= 'table' then
         error('trim_extensions must be table', 2)
-    elseif not is_function(compiler) then
+    elseif type(compiler) ~= 'function' then
         error('compiler must be function', 2)
-    elseif not is_function(loadfenv) then
+    elseif type(loadfenv) ~= 'function' then
         error('loadfenv must be function', 2)
     end
 

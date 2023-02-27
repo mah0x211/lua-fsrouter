@@ -30,6 +30,7 @@ local format = string.format
 local sub = string.sub
 local gsub = string.gsub
 local setmetatable = setmetatable
+local type = type
 local new_categorizer = require('fsrouter.categorizer').new
 local default_ignore = require('fsrouter.default').ignore
 local default_no_ignore = require('fsrouter.default').no_ignore
@@ -41,11 +42,6 @@ local new_plut = plut.new
 local new_regex = require('regex').new
 local basedir = require('basedir')
 local extname = require('extname')
-local isa = require('isa')
-local is_boolean = isa.boolean
-local is_string = isa.string
-local is_table = isa.table
-local is_function = isa.Function
 -- constants
 local DOT_ENTRY = {
     ['.'] = true,
@@ -196,7 +192,7 @@ end
 ---@return boolean
 ---@return string
 local function regex_verify_pattern(s)
-    if not is_string(s) then
+    if type(s) ~= 'string' then
         return false, 'not string'
     end
     -- evalulate
@@ -242,25 +238,25 @@ end
 --- @return table[]? routes
 local function new(pathname, opts)
     opts = opts or {}
-    if not is_string(pathname) then
+    if type(pathname) ~= 'string' then
         error('pathname must be string', 2)
-    elseif not is_table(opts) then
+    elseif type(opts) ~= 'table' then
         error('opts must be table', 2)
-    elseif opts.follow_symlink ~= nil and not is_boolean(opts.follow_symlink) then
+    elseif opts.follow_symlink ~= nil and type(opts.follow_symlink) ~= 'boolean' then
         error('opts.follow_symlink must be boolean', 2)
-    elseif opts.trim_extensions ~= nil and not is_table(opts.trim_extensions) then
+    elseif opts.trim_extensions ~= nil and type(opts.trim_extensions) ~= 'table' then
         error('opts.trim_extensions must be string[]', 2)
-    elseif opts.mimetypes ~= nil and not is_string(opts.mimetypes) then
+    elseif opts.mimetypes ~= nil and type(opts.mimetypes) ~= 'string' then
         error('opts.mimetypes must be string')
-    elseif opts.static ~= nil and not is_table(opts.static) then
+    elseif opts.static ~= nil and type(opts.static) ~= 'table' then
         error('opts.static must be string[]')
-    elseif opts.ignore ~= nil and not is_table(opts.ignore) then
+    elseif opts.ignore ~= nil and type(opts.ignore) ~= 'table' then
         error('opts.ignore must be string[]', 2)
-    elseif opts.no_ignore ~= nil and not is_table(opts.no_ignore) then
+    elseif opts.no_ignore ~= nil and type(opts.no_ignore) ~= 'table' then
         error('opts.no_ignore must be string[]', 2)
-    elseif opts.loadfenv ~= nil and not is_function(opts.loadfenv) then
+    elseif opts.loadfenv ~= nil and type(opts.loadfenv) ~= 'function' then
         error('opts.loadfenv must be function', 2)
-    elseif opts.compiler ~= nil and not is_function(opts.compiler) then
+    elseif opts.compiler ~= nil and type(opts.compiler) ~= 'function' then
         error('opts.compiler must be function', 2)
     end
 
@@ -277,7 +273,7 @@ local function new(pathname, opts)
         '.html',
         '.htm',
     }) do
-        if not is_string(v) then
+        if type(v) ~= 'string' then
             error(format('opts.trim_extensions#%d not string', i), 2)
         end
         ctx.trim_extensions[v] = true
@@ -286,7 +282,7 @@ local function new(pathname, opts)
     -- create static route table
     if opts.static then
         for i, v in ipairs(opts.static) do
-            if not is_string(v) then
+            if type(v) ~= 'string' then
                 error(format('opts.static#%d not string', i), 2)
             end
             ctx.static[v] = true
