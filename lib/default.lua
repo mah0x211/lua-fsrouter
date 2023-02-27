@@ -22,7 +22,6 @@
 -- modules
 local format = string.format
 local pcall = pcall
-local setmetatable = setmetatable
 local tostring = tostring
 local isa = require('isa')
 local is_function = isa.Function
@@ -290,29 +289,28 @@ local function compiler(pathname, fenv)
     end
 
     -- set the handler method registrar
-    local methods = {}
-    fenv.handler = setmetatable({}, {
-        __newindex = function(_, name, fn)
-            if not METHODS[name] then
-                error(format('method %q is not supported', tostring(name)), 2)
-            elseif not is_function(fn) then
-                error('method must be function', 2)
-            elseif methods[name] then
-                error(format('method %q already defined', name), 2)
-            end
-            methods[name] = fn
-        end,
-    })
-
     local fn, err = loadfile(pathname, fenv)
     if err then
         return nil, err
     end
 
-    local ok, perr = pcall(fn)
-    fenv.handler = nil
+    local ok, res = pcall(fn)
     if not ok then
-        return nil, perr
+        return nil, res
+    elseif res == nil then
+        return {}
+    elseif not is_table(res) then
+        error(format('handler must be returned method table'))
+    end
+
+    local methods = {}
+    for name, method in pairs(res) do
+        if not METHODS[name] then
+            return nil, format('method %q is not supported', tostring(name))
+        elseif not is_function(method) then
+            return nil, format('method %q must be function', name)
+        end
+        methods[name] = method
     end
 
     return methods

@@ -1,2 +1,4 @@
-function handler.all()
-end
+return {
+    all = function()
+    end,
+}

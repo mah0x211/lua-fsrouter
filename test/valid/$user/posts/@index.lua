@@ -1,4 +1,5 @@
 -- handler get request for /:user/posts
-function handler.get()
-
-end
+return {
+    get = function()
+    end,
+}

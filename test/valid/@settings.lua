@@ -1,10 +1,12 @@
 -- handle get request for /settings
-function handler.get()
-    -- set data for settings.html
-end
+return {
+    get = function()
+        -- set data for settings.html
+    end,
 
-function handler.post()
-end
+    post = function()
+    end,
 
-function handler.any()
-end
+    any = function()
+    end,
+}
