@@ -92,7 +92,7 @@ In the default compiler, the handler function should be written as follows.
 -- the handler table is a proxy for registering functions.
 
 -- describe a get handler directly
-function handler.get()
+local function get()
     -- describe the contents...
 end
 
@@ -100,8 +100,13 @@ end
 local function do_handle_post_request()
     -- describe the contents...
 end
--- assign do_handle_post_request function as a post handler
-handler.post = do_handle_post_request
+
+return {
+    -- assign get function as a get handler
+    get = get,
+    -- assign do_handle_post_request function as a post handler
+    post = do_handle_post_request
+}
 ```
 
 The following names can be specified for the handler name;  

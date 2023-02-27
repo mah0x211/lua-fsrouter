@@ -1,3 +1,5 @@
-function handler.get()
-end
+return {
+    get = function()
+    end,
+}
 

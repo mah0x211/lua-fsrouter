@@ -514,19 +514,12 @@ function testcase.filter_invalid()
     assert.match(err, 'invalid filter file .+ failed to compile', false)
 end
 
-function testcase.filter_method_already_defined()
-    -- test that method already defined
-    local r, err = fsrouter.new('./filter_method_already_defined')
-    assert.is_nil(r)
-    assert.match(err, 'invalid filter file .+ method "get" already defined',
-                 false)
-end
-
 function testcase.filter_method_must_be_function()
     -- test that method 'all' cannot be used in filter file
     local r, err = fsrouter.new('./filter_method_must_be_function')
     assert.is_nil(r)
-    assert.match(err, 'invalid filter file .+ method must be function', false)
+    assert.match(err, 'invalid filter file .+ method "get" must be function',
+                 false)
 end
 
 function testcase.filter_method_true_is_not_supported()
@@ -565,18 +558,11 @@ function testcase.handler_method_all_cannot_be_used()
     assert.match(err, 'method "all" cannot be used')
 end
 
-function testcase.handler_method_already_defined()
-    -- test that method already defined
-    local r, err = fsrouter.new('./handler_method_already_defined')
-    assert.is_nil(r)
-    assert.match(err, 'method "get" already defined')
-end
-
 function testcase.handler_method_must_be_function()
     -- test that method 'all' cannot be used in handler file
     local r, err = fsrouter.new('./handler_method_must_be_function')
     assert.is_nil(r)
-    assert.match(err, 'method must be function')
+    assert.match(err, 'method "get" must be function')
 end
 
 function testcase.handler_method_true_is_not_supported()

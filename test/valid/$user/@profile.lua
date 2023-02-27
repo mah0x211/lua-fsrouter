@@ -1,5 +1,6 @@
 -- handler get request for /:user/profile
-function handler.get(req, res)
-    -- set data for profile.html
-end
-
+return {
+    get = function(req, res)
+        -- set data for profile.html
+    end,
+}
