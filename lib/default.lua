@@ -23,9 +23,7 @@
 local format = string.format
 local pcall = pcall
 local tostring = tostring
-local isa = require('isa')
-local is_function = isa.Function
-local is_table = isa.table
+local type = type
 local loadfile = require('loadchunk').file
 
 --- shallow_copy
@@ -284,7 +282,7 @@ local METHODS = {
 --- @return nil|table<string, function> methods
 --- @return string? err
 local function compiler(pathname, fenv)
-    if not is_table(fenv) then
+    if type(fenv) ~= 'table' then
         error('fenv must be table', 2)
     end
 
@@ -299,7 +297,7 @@ local function compiler(pathname, fenv)
         return nil, res
     elseif res == nil then
         return {}
-    elseif not is_table(res) then
+    elseif type(res) ~= 'table' then
         error(format('handler must be returned method table'))
     end
 
@@ -307,7 +305,7 @@ local function compiler(pathname, fenv)
     for name, method in pairs(res) do
         if not METHODS[name] then
             return nil, format('method %q is not supported', tostring(name))
-        elseif not is_function(method) then
+        elseif type(method) ~= 'function' then
             return nil, format('method %q must be function', name)
         end
         methods[name] = method
