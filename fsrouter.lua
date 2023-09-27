@@ -26,11 +26,13 @@
 -- modules
 local concat = table.concat
 local error = error
-local format = string.format
 local sub = string.sub
 local gsub = string.gsub
 local setmetatable = setmetatable
 local type = type
+local format = require('print').format
+local new_error = require('error').new
+local toerror = require('error').toerror
 local new_categorizer = require('fsrouter.categorizer').new
 local default_ignore = require('fsrouter.default').ignore
 local default_no_ignore = require('fsrouter.default').no_ignore
@@ -60,8 +62,13 @@ end
 --- get_charset
 ---@param pathname string
 ---@return string charset
+---@return any err
 local function get_charset(pathname)
-    return Magic:file(pathname)
+    local charset, err = Magic:file(pathname)
+    if not charset then
+        return nil, toerror(err)
+    end
+    return charset
 end
 
 --- traverse
@@ -69,15 +76,16 @@ end
 --- @param routes table[]
 --- @param dirname string
 --- @param filters table[]?
---- @param is_static boolean
+--- @param is_static boolean?
 --- @return table[]? routes
---- @return string? err
+--- @return any err
 local function traverse(ctx, routes, dirname, filters, is_static)
     local dir, err = ctx.rootdir:opendir(dirname)
 
     -- failed to readdir
     if err then
-        return nil, format('failed to traverse %s: %s', dirname, err)
+        return nil,
+               new_error(format('failed to opendir %q', dirname), toerror(err))
     elseif not dir then
         return routes
     end
@@ -99,7 +107,8 @@ local function traverse(ctx, routes, dirname, filters, is_static)
 
             stat, err = ctx.rootdir:stat(dirname .. '/' .. entry)
             if err then
-                return nil, format('failed to traverse %s: %s', dirname, err)
+                return nil, new_error(format('failed to traverse %q', dirname),
+                                      toerror(err))
             elseif stat then
                 if stat.type == 'directory' then
                     dentries[#dentries + 1] = stat
@@ -129,7 +138,8 @@ local function traverse(ctx, routes, dirname, filters, is_static)
         entry, err = dir:readdir()
     end
     if err then
-        return nil, format('failed to traverse %s: %s', dirname, err)
+        return nil, new_error(format('failed to traverse %q', dirname),
+                              toerror(err))
     end
 
     -- use segments starting with '$' as parameter segments
@@ -172,8 +182,8 @@ local IGNORE_PLUT_ERROR = {
 --- lookup
 --- @param pathname string
 --- @return table route
---- @return error err
---- @return table glob
+--- @return any err
+--- @return table? glob
 function FSRouter:lookup(pathname)
     local route, err, glob = self.routes:lookup(pathname)
 
@@ -189,16 +199,16 @@ end
 
 --- regex_verify_pattern
 ---@param s string
----@return boolean
----@return string
+---@return boolean ok
+---@return any err
 local function regex_verify_pattern(s)
     if type(s) ~= 'string' then
-        return false, 'not string'
+        return false, new_error('pattern must be string')
     end
     -- evalulate
     local _, err = new_regex(s, 'i')
     if err then
-        return false, format('cannot be compiled: %s', err)
+        return false, toerror(err)
     end
 
     return true
@@ -207,9 +217,9 @@ end
 --- regex_compile_patterns
 ---@param patterns string[]
 ---@return regex re
----@return string err
----@return string pat
----@return integer idx
+---@return any err
+---@return string? pat
+---@return integer? idx
 local function regex_compile_patterns(patterns)
     local list = {}
     for i, p in ipairs(patterns) do
@@ -224,7 +234,7 @@ local function regex_compile_patterns(patterns)
     local pat = '(?:' .. concat(list, '|') .. ')'
     local re, err = new_regex(pat, 'i')
     if err then
-        return nil, err, pat
+        return nil, toerror(err), pat
     end
 
     return re
@@ -322,7 +332,8 @@ local function new(pathname, opts)
     for _, route in ipairs(routes) do
         local ok, serr = router:set(route.rpath, route)
         if not ok then
-            return nil, format('failed to set route %q: %s', route.rpath, serr)
+            return nil, new_error(format('failed to set route %q', route.rpath),
+                                  toerror(serr))
         end
     end
 

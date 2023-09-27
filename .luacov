@@ -1,6 +1,6 @@
 codefromstrings = false
 runreport = true
-deletestats = false
+deletestats = true
 modules = {
     fsrouter = 'fsrouter.lua',
     ['fsrouter.categorizer'] = 'lib/categorizer.lua',
