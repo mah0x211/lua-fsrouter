@@ -20,10 +20,12 @@
 -- THE SOFTWARE.
 --
 -- modules
-local format = string.format
 local pcall = pcall
 local tostring = tostring
 local type = type
+local format = require('print').format
+local new_error = require('error').new
+local toerror = require('error').toerror
 local loadfile = require('loadchunk').file
 
 --- shallow_copy
@@ -280,7 +282,7 @@ local METHODS = {
 --- @param pathname string
 --- @param fenv table
 --- @return nil|table<string, function> methods
---- @return string? err
+--- @return any err
 local function compiler(pathname, fenv)
     if type(fenv) ~= 'table' then
         error('fenv must be table', 2)
@@ -289,24 +291,24 @@ local function compiler(pathname, fenv)
     -- set the handler method registrar
     local fn, err = loadfile(pathname, fenv)
     if err then
-        return nil, err
+        return nil, toerror(err)
     end
 
     local ok, res = pcall(fn)
     if not ok then
-        return nil, res
+        return nil, toerror(res)
     elseif res == nil then
         return {}
     elseif type(res) ~= 'table' then
-        error(format('handler must be returned method table'))
+        error('handler must be returned method table')
     end
 
     local methods = {}
     for name, method in pairs(res) do
         if not METHODS[name] then
-            return nil, format('method %q is not supported', tostring(name))
+            return nil, new_error(format('method %q is not supported', name))
         elseif type(method) ~= 'function' then
-            return nil, format('method %q must be function', name)
+            return nil, new_error(format('method %q must be function', name))
         end
         methods[name] = method
     end

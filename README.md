@@ -13,6 +13,11 @@ lua-fsrouter
 luarocks install fsrouter
 ```
 
+## Error Handling
+
+the following functions return the error object created by https://github.com/mah0x211/lua-error module.
+
+
 ## Create a router from the base directory
 
 ### r, err, routes = fsrouter.new( pathname [, opts] )

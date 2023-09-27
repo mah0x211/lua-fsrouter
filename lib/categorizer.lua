@@ -26,14 +26,15 @@ local pairs = pairs
 local next = next
 local setmetatable = setmetatable
 local tonumber = tonumber
-local tostring = tostring
 local type = type
-local format = string.format
 local find = string.find
 local gsub = string.gsub
 local match = string.match
 local sub = string.sub
 local sort = table.sort
+local format = require('print').format
+local new_error = require('error').new
+local toerror = require('error').toerror
 -- constants
 local METHODS = require('fsrouter.default').METHODS
 
@@ -53,11 +54,12 @@ Categorizer.__index = Categorizer
 --- commpile
 --- @param pathname string
 --- @return table methods
---- @return string err
+--- @return any err
 function Categorizer:compile(pathname)
     local methods, err = self.compiler(pathname, self.loadfenv())
     if err then
-        return nil, format('failed to compile %q: %s', pathname, err)
+        return nil, new_error(format('failed to compile %q', pathname),
+                              toerror(err))
     end
     return methods
 end
@@ -65,7 +67,7 @@ end
 --- as_handler
 --- @param stat table
 --- @return boolean ok
---- @return string err
+--- @return any err
 function Categorizer:as_handler(stat)
     -- extract basename wihtout extension and remove '@' prefix
     local entry = sub(stat.name, 2, #stat.name - #stat.ext)
@@ -77,37 +79,45 @@ function Categorizer:as_handler(stat)
 
     if self.handlers[entry] then
         return false,
-               format('invalid handler file %q: route %q already exists by %s',
-                      stat.rpath, entry, self.handlers[entry].rpath)
+               new_error(
+                   format(
+                       'invalid handler file %q: route %q already exists by %s',
+                       stat.rpath, entry, self.handlers[entry].rpath))
     end
 
     -- compile handler
     local methods, err = self:compile(stat.pathname)
     if err then
-        return false, format('invalid handler file %q: %s', stat.rpath, err)
+        return false, new_error(format('invalid handler file %q', stat.rpath),
+                                toerror(err))
     elseif type(methods) ~= 'table' then
         return false,
-               format(
-                   'invalid handler file %q: method list (%q) is not a table',
-                   stat.rpath, type(methods))
+               new_error(
+                   format(
+                       'invalid handler file %q: method list (%q) is not a table',
+                       stat.rpath, type(methods)))
     elseif methods.all then
         return false,
-               format('invalid handler file %q: the method %q cannot be used',
-                      stat.rpath, 'all')
+               new_error(
+                   format(
+                       'invalid handler file %q: the method %q cannot be used',
+                       stat.rpath, 'all'))
     end
 
     -- verify method/function pairs
     for method, fn in pairs(methods) do
         if not METHODS[method] then
             return false,
-                   format(
-                       'invalid handler file %q: method name (%q) must be string',
-                       stat.rpath, tostring(method))
+                   new_error(
+                       format(
+                           'invalid handler file %q: method name (%q) must be string',
+                           stat.rpath, method))
         elseif type(fn) ~= 'function' then
             return false,
-                   format(
-                       'invalid handler file %q: method (%q) must be function',
-                       stat.rpath, type(fn))
+                   new_error(
+                       format(
+                           'invalid handler file %q: method (%q) must be function',
+                           stat.rpath, type(fn)))
         end
     end
 
@@ -127,7 +137,7 @@ end
 --- as_filter
 --- @param stat table
 --- @return boolean ok
---- @return string err
+--- @return any err
 function Categorizer:as_filter(stat)
     local entry = stat.name
     local order = match(entry, '^#(%d+)%.')
@@ -139,18 +149,18 @@ function Categorizer:as_filter(stat)
             return true
         end
 
-        return false,
-               format(
-                   'invalid filter file %q: the filename prefix must begin with %q',
-                   stat.rpath, "'#%d+%.' or '#-%.'")
+        return false, new_error(format(
+                                    'invalid filter file %q: the filename prefix must begin with %q',
+                                    stat.rpath, "'#%d+%.' or '#-%.'"))
     end
     entry = sub(entry, 3 + #order)
 
     if self.filter_order[order] then
         return false,
-               format(
-                   'invalid filter file %q: the order #%s is already used by %q',
-                   stat.rpath, order, self.filter_order[order])
+               new_error(
+                   format(
+                       'invalid filter file %q: the order #%s is already used by %q',
+                       stat.rpath, order, self.filter_order[order]))
     end
     self.filter_order[order] = stat.rpath
     stat.order = tonumber(order, 10)
@@ -158,11 +168,14 @@ function Categorizer:as_filter(stat)
     -- compile handler
     local methods, err = self:compile(stat.pathname)
     if err then
-        return false, format('invalid filter file %q: %s', stat.rpath, err)
+        return false, new_error(format('invalid filter file %q', stat.rpath),
+                                toerror(err))
     elseif type(methods) ~= 'table' then
         return false,
-               format('invalid filter file %q: method list (%q) is not a table',
-                      stat.rpath, type(methods))
+               new_error(
+                   format(
+                       'invalid filter file %q: method list (%q) is not a table',
+                       stat.rpath, type(methods)))
     end
     stat.methods = methods
 
@@ -170,14 +183,16 @@ function Categorizer:as_filter(stat)
     for method, fn in pairs(methods) do
         if not METHODS[method] then
             return false,
-                   format(
-                       'invalid filter file %q: method name (%q) must be string',
-                       stat.rpath, tostring(method))
+                   new_error(
+                       format(
+                           'invalid filter file %q: method name (%q) must be string',
+                           stat.rpath, method))
         elseif type(fn) ~= 'function' then
             return false,
-                   format(
-                       'invalid filter file %q: method (%q) must be function',
-                       stat.rpath, type(fn))
+                   new_error(
+                       format(
+                           'invalid filter file %q: method (%q) must be function',
+                           stat.rpath, type(fn)))
         end
 
         local list = self.filters[method]
@@ -221,7 +236,7 @@ end
 --- categorize
 --- @param stat table
 --- @return boolean ok
---- @return string? err
+--- @return any err
 function Categorizer:categorize(stat)
     local prefix = sub(stat.name, 1, 1)
     local is_handler = prefix == '@'
@@ -288,9 +303,9 @@ local function append_method_list(dst, src, mtype, method)
     end
 end
 
---- categorize
---- @return boolean ok
---- @return string err
+--- finalize
+--- @return table routes
+--- @return any err
 function Categorizer:finalize()
     local routes = {}
 

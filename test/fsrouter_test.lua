@@ -475,7 +475,7 @@ function testcase.new()
             },
         },
     })
-    assert.match(err, 'opts.ignore#1 not string')
+    assert.match(err, 'opts.ignore#1 .+ pattern must be string', false)
 
     -- test that throws an error if opts.no_ignore is invalid
     err = assert.throws(fsrouter.new, './valid', {
@@ -491,7 +491,7 @@ function testcase.new()
             },
         },
     })
-    assert.match(err, 'opts.no_ignore#1 not string')
+    assert.match(err, 'opts.no_ignore#1 .+ pattern must be string', false)
 
     -- test that throws an error if opts.no_ignore is invalid
     err = assert.throws(fsrouter.new, './valid', {
