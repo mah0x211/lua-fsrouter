@@ -4,7 +4,7 @@ lua-fsrouter
 [![test](https://github.com/mah0x211/lua-fsrouter/actions/workflows/test.yml/badge.svg)](https://github.com/mah0x211/lua-fsrouter/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/mah0x211/lua-fsrouter/branch/master/graph/badge.svg)](https://codecov.io/gh/mah0x211/lua-fsrouter)
 
-`lua-fsrouter` is a filesystem-based url router based on [lua-plut](https://github.com/mah0x211/lua-plut).
+lua-fsrouter is a filesystem-based url router based on [lua-plut](https://github.com/mah0x211/lua-plut).
 
 
 ## Installation
