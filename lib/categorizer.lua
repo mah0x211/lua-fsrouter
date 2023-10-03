@@ -32,9 +32,7 @@ local gsub = string.gsub
 local match = string.match
 local sub = string.sub
 local sort = table.sort
-local format = require('print').format
-local new_error = require('error').new
-local toerror = require('error').toerror
+local errorf = require('error').format
 -- constants
 local METHODS = require('fsrouter.default').METHODS
 
@@ -58,8 +56,7 @@ Categorizer.__index = Categorizer
 function Categorizer:compile(pathname)
     local methods, err = self.compiler(pathname, self.loadfenv())
     if err then
-        return nil, new_error(format('failed to compile %q', pathname),
-                              toerror(err))
+        return nil, errorf('failed to compile %q', pathname, err)
     end
     return methods
 end
@@ -79,45 +76,37 @@ function Categorizer:as_handler(stat)
 
     if self.handlers[entry] then
         return false,
-               new_error(
-                   format(
-                       'invalid handler file %q: route %q already exists by %s',
-                       stat.rpath, entry, self.handlers[entry].rpath))
+               errorf('invalid handler file %q: route %q already exists by %s',
+                      stat.rpath, entry, self.handlers[entry].rpath)
     end
 
     -- compile handler
     local methods, err = self:compile(stat.pathname)
     if err then
-        return false, new_error(format('invalid handler file %q', stat.rpath),
-                                toerror(err))
+        return false, errorf('invalid handler file %q', stat.rpath, err)
     elseif type(methods) ~= 'table' then
         return false,
-               new_error(
-                   format(
-                       'invalid handler file %q: method list (%q) is not a table',
-                       stat.rpath, type(methods)))
+               errorf(
+                   'invalid handler file %q: method list (%q) is not a table',
+                   stat.rpath, type(methods))
     elseif methods.all then
         return false,
-               new_error(
-                   format(
-                       'invalid handler file %q: the method %q cannot be used',
-                       stat.rpath, 'all'))
+               errorf('invalid handler file %q: the method %q cannot be used',
+                      stat.rpath, 'all')
     end
 
     -- verify method/function pairs
     for method, fn in pairs(methods) do
         if not METHODS[method] then
             return false,
-                   new_error(
-                       format(
-                           'invalid handler file %q: method name (%q) must be string',
-                           stat.rpath, method))
+                   errorf(
+                       'invalid handler file %q: method name (%q) must be string',
+                       stat.rpath, method)
         elseif type(fn) ~= 'function' then
             return false,
-                   new_error(
-                       format(
-                           'invalid handler file %q: method (%q) must be function',
-                           stat.rpath, type(fn)))
+                   errorf(
+                       'invalid handler file %q: method (%q) must be function',
+                       stat.rpath, type(fn))
         end
     end
 
@@ -149,18 +138,18 @@ function Categorizer:as_filter(stat)
             return true
         end
 
-        return false, new_error(format(
-                                    'invalid filter file %q: the filename prefix must begin with %q',
-                                    stat.rpath, "'#%d+%.' or '#-%.'"))
+        return false,
+               errorf(
+                   'invalid filter file %q: the filename prefix must begin with %q',
+                   stat.rpath, "'#%d+%.' or '#-%.'")
     end
     entry = sub(entry, 3 + #order)
 
     if self.filter_order[order] then
         return false,
-               new_error(
-                   format(
-                       'invalid filter file %q: the order #%s is already used by %q',
-                       stat.rpath, order, self.filter_order[order]))
+               errorf(
+                   'invalid filter file %q: the order #%s is already used by %q',
+                   stat.rpath, order, self.filter_order[order])
     end
     self.filter_order[order] = stat.rpath
     stat.order = tonumber(order, 10)
@@ -168,14 +157,11 @@ function Categorizer:as_filter(stat)
     -- compile handler
     local methods, err = self:compile(stat.pathname)
     if err then
-        return false, new_error(format('invalid filter file %q', stat.rpath),
-                                toerror(err))
+        return false, errorf('invalid filter file %q', stat.rpath, err)
     elseif type(methods) ~= 'table' then
         return false,
-               new_error(
-                   format(
-                       'invalid filter file %q: method list (%q) is not a table',
-                       stat.rpath, type(methods)))
+               errorf('invalid filter file %q: method list (%q) is not a table',
+                      stat.rpath, type(methods))
     end
     stat.methods = methods
 
@@ -183,16 +169,14 @@ function Categorizer:as_filter(stat)
     for method, fn in pairs(methods) do
         if not METHODS[method] then
             return false,
-                   new_error(
-                       format(
-                           'invalid filter file %q: method name (%q) must be string',
-                           stat.rpath, method))
+                   errorf(
+                       'invalid filter file %q: method name (%q) must be string',
+                       stat.rpath, method)
         elseif type(fn) ~= 'function' then
             return false,
-                   new_error(
-                       format(
-                           'invalid filter file %q: method (%q) must be function',
-                           stat.rpath, type(fn)))
+                   errorf(
+                       'invalid filter file %q: method (%q) must be function',
+                       stat.rpath, type(fn))
         end
 
         local list = self.filters[method]

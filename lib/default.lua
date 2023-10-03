@@ -23,9 +23,7 @@
 local pcall = pcall
 local tostring = tostring
 local type = type
-local format = require('print').format
-local new_error = require('error').new
-local toerror = require('error').toerror
+local errorf = require('error').format
 local loadfile = require('loadchunk').file
 
 --- shallow_copy
@@ -278,7 +276,7 @@ local METHODS = {
     patch = 'PATCH',
 }
 
---- evalfile
+--- compiler
 --- @param pathname string
 --- @param fenv table
 --- @return nil|table<string, function> methods
@@ -291,12 +289,12 @@ local function compiler(pathname, fenv)
     -- set the handler method registrar
     local fn, err = loadfile(pathname, fenv)
     if err then
-        return nil, toerror(err)
+        return nil, errorf('failed to loadfile()', err)
     end
 
     local ok, res = pcall(fn)
     if not ok then
-        return nil, toerror(res)
+        return nil, errorf('failed to pre-process()', res)
     elseif res == nil then
         return {}
     elseif type(res) ~= 'table' then
@@ -306,9 +304,9 @@ local function compiler(pathname, fenv)
     local methods = {}
     for name, method in pairs(res) do
         if not METHODS[name] then
-            return nil, new_error(format('method %q is not supported', name))
+            return nil, errorf('method %q is not supported', name)
         elseif type(method) ~= 'function' then
-            return nil, new_error(format('method %q must be function', name))
+            return nil, errorf('method %q must be function', name)
         end
         methods[name] = method
     end
