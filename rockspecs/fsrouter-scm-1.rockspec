@@ -26,5 +26,6 @@ build = {
         fsrouter = "fsrouter.lua",
         ["fsrouter.categorizer"] = "lib/categorizer.lua",
         ["fsrouter.default"] = "lib/default.lua",
+        ["fsrouter.readdir"] = "lib/readdir.lua",
     },
 }

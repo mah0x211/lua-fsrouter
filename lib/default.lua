@@ -334,9 +334,16 @@ local function default_ignore()
     }
 end
 
+--- default_precheck
+--- @return boolean ok
+local function default_precheck()
+    return true
+end
+
 return {
     ignore = default_ignore,
     no_ignore = default_no_ignore,
+    precheck = default_precheck,
     loadfenv = loadfenv,
     compiler = compiler,
     METHODS = METHODS,

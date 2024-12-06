@@ -1,5 +1,6 @@
 require('luacov')
 local testcase = require('testcase')
+local assert = require('assert')
 local fsrouter = require('fsrouter')
 local dump = require('dump')
 
@@ -407,13 +408,28 @@ function testcase.new()
         end
     end
 
+    --  test that return an error of precheck error
+    local _, err = fsrouter.new('./valid', {
+        precheck = function()
+            return false, 'my precheck error'
+        end,
+    })
+    assert.match(err, 'my precheck error')
+    assert.is_nil(_)
+
     -- test that throws an error if pathname is invalid
-    local err = assert.throws(fsrouter.new, true)
+    err = assert.throws(fsrouter.new, true)
     assert.match(err, 'pathname must be string')
 
     -- test that throws an error if opts is invalid
     err = assert.throws(fsrouter.new, './valid', true)
     assert.match(err, 'opts must be table')
+
+    -- test that throws an error if opts.precheck is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        precheck = true,
+    })
+    assert.match(err, 'opts.precheck must be function')
 
     -- test that throws an error if opts.follow_symlink is invalid
     err = assert.throws(fsrouter.new, './valid', {
