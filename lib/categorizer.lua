@@ -36,13 +36,48 @@ local errorf = require('error').format
 -- constants
 local METHODS = require('fsrouter.default').METHODS
 
+--- @class fsrouter.route.stat
+--- @field name string filename
+--- @field ext string extension of the file (starting with '.')
+--- @field pathname string absolute path of the file
+--- @field rpath string relative path of the file from the root directory
+--- @field type string 'file'
+--- @field charset string charset of the file
+--- @field mime string mime type of the file
+--- @field perm string permission of the file (e.g. '0644')
+--- @field size integer size of the file in bytes
+
+--- @class fsrouter.route.handler : fsrouter.route.stat
+--- @field methods table<string, function> method name and function pairs
+
+--- @class fsrouter.route.filter : fsrouter.route.handler
+--- @field order integer order of the filter (starting with 1)
+
+--- @class fsrouter.route.filters.item
+--- @field name string filename without prefix
+--- @field order integer order of the filter (starting with 1)
+--- @field stat fsrouter.route.filter
+
+--- @class fsrouter.route.method
+--- @field name string relative path of the file that contains the function
+--- @field type string 'filter' or 'handler'
+--- @field idx integer? if `type` field is 'filter', this field is the call order of the filter function.
+--- @field method string method name (e.g. 'get', 'post', ...)
+--- @field fn function the function defined in the file
+
+--- @class fsrouter.route
+--- @field file fsrouter.route.stat
+--- @field filters table<string, fsrouter.route.filter[]>
+--- @field handler fsrouter.route.handler?
+--- @field methods table<string, table<string, fsrouter.route.method[]>>
+
 --- @class Categorizer
 --- @field trim_extensions table<string, boolean>
 --- @field compiler function
 --- @field loadfenv function
 --- @field upfilters table[]
---- @field files table<string, table>
---- @field filters table[]
+--- @field files table<string, fsrouter.route.stat>
+--- @field filters table<string, fsrouter.route.filters.item[]>
 --- @field filter_order table<string, string>
 --- @field filter_disabled table<string, any>
 --- @field handlers table<string, table>
@@ -51,7 +86,7 @@ Categorizer.__index = Categorizer
 
 --- commpile
 --- @param pathname string
---- @return table methods
+--- @return table<string, function> methods
 --- @return any err
 function Categorizer:compile(pathname)
     local methods, err = self.compiler(pathname, self.loadfenv())
@@ -62,7 +97,7 @@ function Categorizer:compile(pathname)
 end
 
 --- as_handler
---- @param stat table
+--- @param stat fsrouter.route.handler
 --- @return boolean ok
 --- @return any err
 function Categorizer:as_handler(stat)
@@ -124,7 +159,7 @@ function Categorizer:as_handler(stat)
 end
 
 --- as_filter
---- @param stat table
+--- @param stat fsrouter.route.filter
 --- @return boolean ok
 --- @return any err
 function Categorizer:as_filter(stat)
@@ -196,7 +231,7 @@ function Categorizer:as_filter(stat)
 end
 
 --- as_file
---- @param stat table
+--- @param stat fsrouter.route.stat
 --- @return boolean ok
 function Categorizer:as_file(stat)
     local entry = stat.name
@@ -218,7 +253,7 @@ function Categorizer:as_file(stat)
 end
 
 --- categorize
---- @param stat table
+--- @param stat fsrouter.route.stat
 --- @return boolean ok
 --- @return any err
 function Categorizer:categorize(stat)
@@ -252,8 +287,8 @@ local function sort_by_name(a, b)
 end
 
 --- shallow_copy
---- @param tbl table|nil
---- @param filterfn function|nil
+--- @param tbl table<string, function>?
+--- @param filterfn function?
 --- @return table|nil
 local function shallow_copy(tbl, filterfn)
     if tbl ~= nil then
@@ -325,6 +360,7 @@ function Categorizer:finalize()
     -- create file route
     for name, stat in pairs(self.files) do
         local methods = {}
+        --- @type fsrouter.route
         local route = {
             name = name,
             file = stat,
