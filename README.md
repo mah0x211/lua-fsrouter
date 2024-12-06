@@ -46,6 +46,15 @@ create a new router based on the specified directory.
              'all' / 'any' / 'get' / 'head' / 'post' / 'put' / 'delete' / 
              'connect' / 'trace' / 'patch'.
         ```
+    - `precheck:function`: function to prechecks before adding a route.  
+        ```
+        -- Specification of the precheck function
+        ok, err = precheck( route )
+
+        - `route:table`: path of the target file.
+        - `ok:boolean`: return `true` if the route can be added.
+        - `err:any`: an error message. if it is not `nil`, abort the traversal.
+        ```
 
 **Returns**
 
