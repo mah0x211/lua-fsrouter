@@ -30,7 +30,22 @@ create a new router based on the specified directory.
 - `opts:table`
     - `follow_symlink:boolean`: follow symbolic links. (default `false`)
     - `trim_extensions:string[]`: list of extensions to be removed from the route path. (default `{ '.html', '.htm }` )
-    - `mimetypes:string`: mime types definition string. (default: `mediatype.default`)
+    - `mimetypes:string`: mime types definition string as the following format. (default: `nil`)
+        ```
+        #
+        # mime types definition
+        # this format is based on the nginx mime.types file.
+        #
+        my/mimetype     my myfile; # my custom mime-type
+
+        # no needs to last semicolon
+        application/json json
+
+        # invalid mime type definition
+        extension/is-not-declared
+
+        invalid_mime*/type foo # invalid mime type is ignored
+        ```
     - `static:string[]`: list of static directories. files except the filter handler files in the listed directories are treated as static files. (default: `nil`)
     - `ignore:string[]`: regular expression for filenames to ignore. (default: `fsrouter.default.ignore`)
     - `no_ignore:string[]`: regular expressions for filenames not to ignore. (default: `fsrouter.default.no_ignore`)

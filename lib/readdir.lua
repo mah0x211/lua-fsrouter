@@ -33,7 +33,7 @@ local default_no_ignore = require('fsrouter.default').no_ignore
 local default_precheck = require('fsrouter.default').precheck
 local default_compiler = require('fsrouter.default').compiler
 local default_loadfenv = require('fsrouter.default').loadfenv
-local new_mediatypes = require('mediatypes').new
+local new_mime = require('mime').new
 local new_regex = require('regex').new
 local new_basedir = require('basedir').new
 local extname = require('extname')
@@ -66,7 +66,7 @@ end
 
 --- @class fsrouter.readdir.context
 --- @field rootdir BaseDir
---- @field mime MediaType
+--- @field mime mime
 --- @field static table<string, boolean>
 --- @field re_ignore regex regex pattern to ignore files
 --- @field re_no_ignore regex regex pattern to allow files
@@ -118,7 +118,7 @@ local function traverse(ctx, routes, dirname, filters, is_static)
                     local ext = extname(stat.rpath)
                     stat.name = entry
                     stat.ext = ext
-                    stat.mime = ext and ctx.mime:getmime(gsub(ext, '^.', ''))
+                    stat.mime = ext and ctx.mime:getmime(sub(ext, 2))
                     stat.charset = get_charset(stat.pathname)
 
                     local ok
@@ -266,10 +266,19 @@ local function readdir(pathname, opts)
         error('opts.precheck must be function', 2)
     end
 
+    local mime = new_mime()
+    if opts.mimetypes then
+        local invalid_lines = mime:read(opts.mimetypes)
+        if invalid_lines then
+            error('found invalid lines in opts.mimetypes: \n' ..
+                      concat(invalid_lines, '\n'), 2)
+        end
+    end
+
     --- @type fsrouter.readdir.context
     local ctx = {
         rootdir = new_basedir(pathname, opts.follow_symlink == true),
-        mime = new_mediatypes(opts.mimetypes),
+        mime = mime,
         trim_extensions = {},
         compiler = opts.compiler or default_compiler,
         loadfenv = opts.loadfenv or default_loadfenv,

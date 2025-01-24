@@ -480,6 +480,24 @@ function testcase.new()
         },
     })
     assert.match(err, 'opts.mimetypes must be string')
+    err = assert.throws(fsrouter.new, './valid', {
+        mimetypes = [[
+        #
+        # mime types definition
+        # this format is based on the nginx mime.types file.
+        #
+        my/mimetype     my myfile; # my custom mime-type
+
+        # no needs to last semicolon
+        application/json json
+
+        # invalid mime type definition
+        extension/is-not-declared
+
+        invalid_mime*/type foo # invalid mime type is ignored
+        ]],
+    })
+    assert.match(err, 'found invalid lines in opts.mimetypes')
 
     -- test that throws an error if opts.static is invalid
     err = assert.throws(fsrouter.new, './valid', {
