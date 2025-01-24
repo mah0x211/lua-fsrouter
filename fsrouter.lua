@@ -38,15 +38,6 @@ local readdir = require('fsrouter.readdir')
 local plut = require('plut')
 local new_plut = plut.new --- @type fun():plut
 
--- init for libmagic
-local Magic
-do
-    local libmagic = require('libmagic')
-    Magic = libmagic.open(libmagic.MIME_ENCODING, libmagic.NO_CHECK_COMPRESS,
-                          libmagic.SYMLINK)
-    Magic:load()
-end
-
 --- @class fsrouter
 --- @field router plut
 local FSRouter = {}
