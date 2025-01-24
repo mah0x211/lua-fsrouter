@@ -25,7 +25,6 @@
 --
 -- modules
 local error = error
-local setmetatable = setmetatable
 local type = type
 local errorf = require('error').format
 local default_precheck = require('fsrouter.default').precheck
@@ -42,41 +41,17 @@ do
     Magic:load()
 end
 
---- @class FSRouter
+--- @class fsrouter
 --- @field routes Plut
 local FSRouter = {}
-FSRouter.__index = FSRouter
-
-local IGNORE_PLUT_ERROR = {
-    [plut.EPATHNAME] = true,
-    [plut.ERESERVED] = true,
-}
-
---- lookup
---- @param pathname string
---- @return table route
---- @return any err
---- @return table? glob
-function FSRouter:lookup(pathname)
-    local route, err, glob = self.routes:lookup(pathname)
-
-    if err then
-        if IGNORE_PLUT_ERROR[err.type] then
-            return nil
-        end
-        return nil, errorf('failed to lookup()', err)
-    end
-
-    return route, nil, glob
-end
 
 --- new
 --- @param pathname string
 --- @param opts table?
---- @return FSRouter? router
+--- @return fsrouter? router
 --- @return any err
 --- @return table[]? routes
-local function new(pathname, opts)
+function FSRouter:init(pathname, opts)
     opts = opts or {}
     if type(pathname) ~= 'string' then
         error('pathname must be string', 2)
@@ -110,11 +85,33 @@ local function new(pathname, opts)
         return nil, err
     end
 
-    return setmetatable({
-        routes = router,
-    }, FSRouter), nil, routes
+    self.routes = router
+    return self, nil, routes
+end
+
+local IGNORE_PLUT_ERROR = {
+    [plut.EPATHNAME] = true,
+    [plut.ERESERVED] = true,
+}
+
+--- lookup
+--- @param pathname string
+--- @return table route
+--- @return any err
+--- @return table? glob
+function FSRouter:lookup(pathname)
+    local route, err, glob = self.routes:lookup(pathname)
+
+    if err then
+        if IGNORE_PLUT_ERROR[err.type] then
+            return nil
+        end
+        return nil, errorf('failed to lookup()', err)
+    end
+
+    return route, nil, glob
 end
 
 return {
-    new = new,
+    new = require('metamodule').new(FSRouter),
 }

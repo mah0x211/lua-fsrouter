@@ -31,6 +31,7 @@ function testcase.new()
             '/another_static',
         },
     }))
+    assert.match(r, '^fsrouter: ', false)
     for _, v in ipairs({
         {
             pathname = '/',

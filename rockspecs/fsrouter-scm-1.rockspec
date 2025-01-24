@@ -17,6 +17,7 @@ dependencies = {
     "libmagic >= 5.41",
     "loadchunk >= 0.1.2",
     "mediatypes >= 2.0.1",
+    "metamodule >= 0.5.0",
     "plut >= 0.4.0",
     "print >= 0.5.0",
 }
