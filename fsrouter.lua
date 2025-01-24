@@ -26,11 +26,17 @@
 -- modules
 local error = error
 local type = type
+local pcall = pcall
 local errorf = require('error').format
 local default_precheck = require('fsrouter.default').precheck
 local readdir = require('fsrouter.readdir')
+
+--- @class plut
+--- @field set fun(self, pathname:string, data:any):(ok:boolean, err:any)
+--- @field lookup fun(self, pathname:string):(data:any, err:any, glob:table)
+
 local plut = require('plut')
-local new_plut = plut.new
+local new_plut = plut.new --- @type fun():plut
 
 -- init for libmagic
 local Magic
@@ -42,7 +48,7 @@ do
 end
 
 --- @class fsrouter
---- @field routes Plut
+--- @field router plut
 local FSRouter = {}
 
 --- new
@@ -57,11 +63,19 @@ function FSRouter:init(pathname, opts)
         error('pathname must be string', 2)
     elseif type(opts) ~= 'table' then
         error('opts must be table', 2)
-    elseif opts.precheck ~= nil and type(opts.precheck) ~= 'function' then
+    elseif opts.precheck ~= nil and not pcall(function()
+        assert(type(opts.precheck) == 'function')
+    end) then
         error('opts.precheck must be function', 2)
+    elseif opts.router ~= nil and not pcall(function()
+        -- check the router methods
+        assert(type(opts.router.set) == 'function')
+        assert(type(opts.router.lookup) == 'function')
+    end) then
+        error('opt.router must has set() and lookup() methods', 2)
     end
 
-    local router = new_plut()
+    local router = opts.router or new_plut()
     local user_precheck = opts.precheck or default_precheck
     opts.precheck = function(route)
         -- register the url to the router

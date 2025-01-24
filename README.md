@@ -55,6 +55,16 @@ create a new router based on the specified directory.
         - `ok:boolean`: return `true` if the route can be added.
         - `err:any`: an error message. if it is not `nil`, abort the traversal.
         ```
+    - `router:any`: router object to be used as a router. (default: `nil`)
+        ```
+        -- Specification of the router object
+        -- set a pathname and value pair.
+        ok, err = router:set( pathname, val )
+        -- lookup a value associated with the specified pathname.
+        val, err, glob = router:lookup( pathname )
+        ```
+        please refer to the [lua-plut](https://github.com/mah0x211/lua-plut) module for more information.
+
 
 **Returns**
 

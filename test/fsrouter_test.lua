@@ -418,6 +418,19 @@ function testcase.new()
     assert.match(err, 'my precheck error')
     assert.is_nil(_)
 
+    -- test that return an error of router:set() error
+    _, err = fsrouter.new('./valid', {
+        router = {
+            set = function()
+                return false, 'my router:set() error'
+            end,
+            lookup = function()
+                return nil, 'my router:lookup() error'
+            end,
+        },
+    })
+    assert.match(err, 'my router:set() error')
+
     -- test that throws an error if pathname is invalid
     err = assert.throws(fsrouter.new, true)
     assert.match(err, 'pathname must be string')
@@ -431,6 +444,12 @@ function testcase.new()
         precheck = true,
     })
     assert.match(err, 'opts.precheck must be function')
+
+    -- test that throws an error if opts.router is invalid
+    err = assert.throws(fsrouter.new, './valid', {
+        router = {},
+    })
+    assert.match(err, 'opt.router must has set() and lookup() methods')
 
     -- test that throws an error if opts.follow_symlink is invalid
     err = assert.throws(fsrouter.new, './valid', {
@@ -616,5 +635,24 @@ function testcase.lookup_error()
         assert.is_nil(err)
         assert.is_nil(glob)
     end
+
+    -- test that return an error of router:lookup() error
+    r = assert(fsrouter.new('./valid', {
+        static = {
+            '/static',
+            '/another_static',
+        },
+        router = {
+            set = function()
+                return true
+            end,
+            lookup = function()
+                return nil, 'my router:lookup() error'
+            end,
+        },
+    }))
+    local _, err = r:lookup('/')
+    assert.match(err, 'my router:lookup() error')
+
 end
 
