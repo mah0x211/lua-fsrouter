@@ -469,3 +469,98 @@ print(dump({
 ```
 
 </details>
+
+
+## Invoking the handler function
+
+the following code is an example of invoking the handler function.
+
+```lua
+local dump = require('dump')
+local fsrouter = require('fsrouter')
+
+--- invoke handlers
+--- @param r fsrouter - router object
+--- @param method string - request method
+--- @param pathname string - request pathname
+local function invoke_handlers(r, method, pathname)
+    method = lower(method)
+
+    local res = {
+        headers = {},
+        body = {},
+    }
+    -- lookup route
+    local route, err, glob = r:lookup(pathname)
+    if err then
+        res.status = 500 -- internal server error
+        res.error = err
+        return res
+    elseif not route then
+        res.status = 404 -- not found
+        return res
+    end
+
+    if not next(route.methods) then
+        if route.file and method == 'get' then
+            -- allow only the GET method for request to file
+            res.status = 200 -- ok
+            res.file = route.file
+            return res
+        end
+        -- no handler defined for the request method
+        res.status = 405 -- method not allowed
+        return res
+    end
+
+    -- get the list of handler functions
+    local handlers = route.methods[method]
+    if not mlist then
+        -- get the list of handler functions for the any method
+        handlers = route.methods.any
+        if not handlers then
+            -- no handler defined for the request method
+            res.status = 405 -- method not allowed
+            return res
+        end
+    end
+
+    -- invoke handlers
+    local req = {
+        method = method,
+        pathname = pathname,
+        params = glob,
+        uri = route.rpath,
+    }
+    for i, handler in ipairs(handlers) do
+        local ok, err, timeout = handler.fn(req, res)
+        if ok or err or timeout then
+            if i < #handlers then
+                print(('handler chain stopped at #%d: %s'):format(i, handler.name))
+            end
+
+            if err then
+                -- stop the handler invocation chain if the response is error
+                res.status = 500 -- internal server error
+                res.error = err
+                return res
+            elseif timeout then
+                -- stop the handler invocation chain if the response is timeout
+                res.status = 503 -- service unavailable
+                return res
+            end
+
+            -- stop the handler invocation chain if the response is ok
+            return res
+        end
+    end
+    return res
+end
+
+-- create a new router based on the specified directory
+local r = fsrouter.new('html')
+-- invoke handlers
+local res = invoke_handlers('GET', '/foobar/posts/post-id/hello-my-post')
+-- reply the response to the client
+-- ...
+```
