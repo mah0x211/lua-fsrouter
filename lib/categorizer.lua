@@ -24,7 +24,6 @@ local error = error
 local ipairs = ipairs
 local pairs = pairs
 local next = next
-local setmetatable = setmetatable
 local tonumber = tonumber
 local type = type
 local find = string.find
@@ -71,10 +70,10 @@ local METHODS = require('fsrouter.default').METHODS
 --- @field handler fsrouter.route.handler?
 --- @field methods table<string, table<string, fsrouter.route.method[]>>
 
---- @class Categorizer
+--- @class fsrouter.categorizer
 --- @field trim_extensions table<string, boolean>
---- @field compiler function
---- @field loadfenv function
+--- @field compiler fun(pathname:string, fenv:table):(methods:table<string, function>?, err:any)
+--- @field loadfenv fun():table
 --- @field upfilters table[]
 --- @field files table<string, fsrouter.route.stat>
 --- @field filters table<string, fsrouter.route.filters.item[]>
@@ -82,7 +81,33 @@ local METHODS = require('fsrouter.default').METHODS
 --- @field filter_disabled table<string, any>
 --- @field handlers table<string, table>
 local Categorizer = {}
-Categorizer.__index = Categorizer
+
+--- new
+--- @param trim_extensions table<string, boolean>
+--- @param compiler function
+--- @param loadfenv function
+--- @param upfilters table[]
+--- @return fsrouter.categorizer
+function Categorizer:init(trim_extensions, compiler, loadfenv, upfilters)
+    if type(trim_extensions) ~= 'table' then
+        error('trim_extensions must be table', 2)
+    elseif type(compiler) ~= 'function' then
+        error('compiler must be function', 2)
+    elseif type(loadfenv) ~= 'function' then
+        error('loadfenv must be function', 2)
+    end
+
+    self.trim_extensions = trim_extensions
+    self.compiler = compiler
+    self.loadfenv = loadfenv
+    self.files = {}
+    self.handlers = {}
+    self.filters = {}
+    self.filter_order = {}
+    self.filter_disabled = {}
+    self.upfilters = upfilters or {}
+    return self
+end
 
 --- commpile
 --- @param pathname string
@@ -446,34 +471,6 @@ function Categorizer:finalize()
     return routes
 end
 
---- new
---- @param trim_extensions table<string, boolean>
---- @param compiler function
---- @param loadfenv function
---- @param upfilters table[]
---- @return Categorizer
-local function new(trim_extensions, compiler, loadfenv, upfilters)
-    if type(trim_extensions) ~= 'table' then
-        error('trim_extensions must be table', 2)
-    elseif type(compiler) ~= 'function' then
-        error('compiler must be function', 2)
-    elseif type(loadfenv) ~= 'function' then
-        error('loadfenv must be function', 2)
-    end
-
-    return setmetatable({
-        trim_extensions = trim_extensions,
-        compiler = compiler,
-        loadfenv = loadfenv,
-        files = {},
-        handlers = {},
-        filters = {},
-        filter_order = {},
-        filter_disabled = {},
-        upfilters = upfilters or {},
-    }, Categorizer)
-end
-
 return {
-    new = new,
+    new = require('metamodule').new(Categorizer),
 }
